@@ -1,0 +1,72 @@
+# Database Backup System Configuration
+# Copy this file to config.yaml and configure your databases
+
+# Multiple PostgreSQL Databases
+pgsql:
+  - host: localhost
+    port: 5432
+    database: database
+    username: myusername
+    password: mysecretpassword
+  - host: localhost
+    port: 5432
+    database: testdb
+    username: testuser
+    password: testpass
+  - host: remote-server.com
+    port: 5432
+    database: production
+    username: produser
+    password: prodpass
+
+# Multiple MongoDB Databases
+mongodb:
+  - host: localhost
+    port: 27017
+    database: database
+    uri: mongodb://localhost:27017/database
+  - host: localhost
+    port: 27017
+    database: testdb
+    uri: mongodb://localhost:27017/testdb
+  - host: mongo-cluster.com
+    port: 27017
+    database: production
+    uri: mongodb://user:pass@mongo-cluster.com:27017/production
+
+# FTP Configuration (optional)
+ftp:
+  host: storage.nullservers.com
+  port: 21
+  username: kube
+  password: your_ftp_password
+  remote_dir: /backup/mongodb-cron
+  ssl: false
+
+# Telegram Configuration (optional)
+telegram:
+  bot_token: your_bot_token
+  chat_id: your_chat_id
+  enabled: true
+
+# Backup Configuration
+backup:
+  directory: ./backups
+  retention_days: 7
+  compression: true
+  log_level: INFO
+  verbose: false
+
+# Single database example (alternative format):
+# pgsql:
+#   host: localhost
+#   port: 5432
+#   database: database
+#   username: myusername
+#   password: mysecretpassword
+#
+# mongodb:
+#   host: localhost
+#   port: 27017
+#   database: database
+#   uri: mongodb://localhost:27017/database

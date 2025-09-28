@@ -1,0 +1,68 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":dependencyDashboard",
+    ":prHourlyLimitNone",
+    ":prConcurrentLimitNone"
+  ],
+  "timezone": "Europe/Stockholm",
+  "commitMessagePrefix": "Renovate/",
+  "commitMessageTopic": "{{depName}}",
+  "dependencyDashboard": true,
+  "dependencyDashboardTitle": "Renovate",
+  "labels": [
+    "kind/update",
+    "renovate"
+  ],
+  "ignorePaths": [
+    ".vscode/",
+    "studies/",
+    "workshops"
+  ],
+  "enabledManagers": [
+    "helm-requirements",
+    "helmv3"
+  ],
+  "helmv3": {
+    "enabled": true
+  },
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Bump Helm Chart version when dependencies update",
+      "managerFilePatterns": [
+        "/(^|/)Chart\\.yaml$/"
+      ],
+      "matchStrings": [
+        "version:\\s*(?<currentValue>\\S+)"
+      ],
+      "depNameTemplate": "main-chart-version",
+      "datasourceTemplate": "helm",
+      "versioningTemplate": "semver"
+    }
+  ],
+  "packageRules": [
+    {
+      "matchUpdateTypes": [
+        "patch",
+        "minor"
+      ],
+      "matchCurrentVersion": "!/^0/",
+      "automerge": true
+    },
+    {
+      "matchDepNames": [
+        "immich",
+        "cilium",
+        "k3s"
+      ],
+      "automerge": false
+    }
+  ],
+  "kubernetes": {
+    "managerFilePatterns": [
+      "/kubernetes/manifests/.+\\.yaml/"
+    ]
+  }
+}
