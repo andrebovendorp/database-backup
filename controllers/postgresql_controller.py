@@ -140,6 +140,11 @@ class PostgreSQLBackupController(BaseBackupController):
         if self.db_config.username:
             cmd.extend(["--username", self.db_config.username])
         
+        if self.db_config.password:
+            cmd.extend(["--password", self.db_config.password])
+        else:
+            cmd.extend(["--no-password"])
+        
         if self.db_config.database:
             cmd.extend(["--dbname", self.db_config.database])
         
@@ -147,7 +152,7 @@ class PostgreSQLBackupController(BaseBackupController):
         cmd.extend(["--file", output_file])
         
         # Add format and options
-        cmd.extend(["--verbose", "--no-password"])
+        cmd.extend(["--verbose"])
         
         # Add additional parameters
         if self.db_config.additional_params:
