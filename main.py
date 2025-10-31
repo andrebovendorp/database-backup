@@ -1,5 +1,18 @@
 """
 Main application entry point for database backup system.
+
+A comprehensive, cross-platform database backup solution with Windows-optimized
+tempfile handling, smart tool detection, and native compression support.
+
+Features:
+- Multi-database support (PostgreSQL, MongoDB)
+- Cross-platform compatibility (Windows, Linux, macOS)
+- Automatic database tool detection
+- Windows-compatible tempfile and compression handling
+- FTP upload with SSL support
+- Telegram notifications
+- Retention management and cleanup
+- Comprehensive error handling and logging
 """
 import os
 import sys

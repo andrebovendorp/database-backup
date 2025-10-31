@@ -4,23 +4,63 @@ A comprehensive Python-based database backup solution supporting MongoDB and Pos
 
 ## 🚀 Features
 
-- **Multi-Database Support**: MongoDB and PostgreSQL
-- **MVC Architecture**: Clean separation of concerns
-- **FTP Upload**: Automatic backup upload to FTP servers
-- **Telegram Notifications**: Real-time backup status notifications
-- **Retention Management**: Automatic cleanup of old backups
-- **Comprehensive Logging**: Detailed logging with debug support
-- **Unit Tests**: Full test coverage for all components
-- **CLI Interface**: Easy-to-use command-line interface
-- **Kubernetes Ready**: Complete K8s manifests with CronJob
-- **Docker Support**: Multi-architecture Docker images
+- **Multi-Database Support**: MongoDB and PostgreSQL with full backup/restore capabilities
+- **Cross-Platform Compatibility**: Windows, Linux, and macOS support with platform-specific optimizations
+- **Windows-Optimized**: Automatic database tool detection, improved tempfile handling, and native compression
+- **MVC Architecture**: Clean separation of concerns with extensible controller pattern
+- **FTP Upload**: Automatic backup upload to FTP servers with SSL support
+- **Telegram Notifications**: Real-time backup status notifications with detailed reporting
+- **Retention Management**: Automatic cleanup of old backups with configurable retention policies
+- **Comprehensive Logging**: Detailed logging with debug support and file rotation
+- **Unit Tests**: Full test coverage for all components and error scenarios
+- **CLI Interface**: Easy-to-use command-line interface with comprehensive options
+- **Kubernetes Ready**: Complete K8s manifests with CronJob and security policies
+- **Docker Support**: Multi-architecture Docker images (AMD64/ARM64)
 - **Executable Builds**: Standalone executables for all platforms
-- **Configuration-Driven**: YAML-based database configuration
+- **Configuration-Driven**: YAML-based database configuration with environment variable fallback
+- **Smart Tool Detection**: Automatic detection of database tools in common installation paths
+- **Robust Error Handling**: Graceful failure handling with detailed error reporting
+
+## 🆕 Recent Improvements
+
+### Windows Compatibility Enhancements (v2.1.0)
+- **Fixed Tempfile Issues**: Resolved Windows file locking problems by replacing `tempfile.NamedTemporaryFile` with `tempfile.TemporaryDirectory()`
+- **Native Compression**: Implemented `shutil.make_archive()` for Windows-compatible compression with tar command fallback
+- **Smart Tool Detection**: Added automatic detection of PostgreSQL and MongoDB tools in common Windows installation paths:
+  - `C:\Program Files\PostgreSQL\*\bin`
+  - `C:\Program Files (x86)\PostgreSQL\*\bin`
+  - `C:\Program Files\MongoDB\Server\*\bin`
+- **Enhanced Error Messages**: Added Windows-specific installation guidance and troubleshooting
+- **Improved Path Handling**: Proper Windows path separator handling throughout the system
+### Cross-Platform Archive Extraction**: Added `shutil.unpack_archive()` for restore operations with tar fallback
+
+### Technical Implementation Details
+- **Tempfile Strategy**: Replaced `tempfile.NamedTemporaryFile(delete=False)` with `tempfile.TemporaryDirectory()` to avoid Windows file locking issues
+- **Archive Creation**: Primary method uses `shutil.make_archive()` with automatic fallback to system `tar` command
+- **Tool Discovery**: Implements glob-based search in common installation directories with intelligent path detection
+- **Error Handling**: Provides platform-specific installation guidance and detailed error context
+- **Logging**: Enhanced logging shows detected tool paths and platform-specific information
 
 ## 📦 Installation
 
+### Prerequisites
+
+**Database Tools Required:**
+
+**For PostgreSQL backups:**
+- **Windows**: Install PostgreSQL from https://www.postgresql.org/download/windows/ (includes pg_dump/psql)
+- **Linux**: `sudo apt-get install postgresql-client` or `sudo yum install postgresql`
+- **macOS**: `brew install postgresql`
+
+**For MongoDB backups:**
+- **All Platforms**: Install MongoDB Database Tools from https://www.mongodb.com/docs/database-tools/
+- The system will automatically detect tools in common installation paths
+
 ### Option 1: Python Package
 ```bash
+# Clone repository
+git clone https://github.com/your-username/database-backup.git
+cd database-backup
 
 # Install dependencies
 pip install -r requirements.txt
@@ -126,63 +166,130 @@ TELEGRAM_ENABLED=true
 
 ## 🎯 Quick Start
 
-### 1. Configure Your Databases
+### 1. Install Database Tools (if not already installed)
+
+**Windows:**
+```powershell
+# Install PostgreSQL (includes pg_dump, psql)
+# Download from: https://www.postgresql.org/download/windows/
+# Or use chocolatey:
+choco install postgresql
+
+# Install MongoDB Database Tools
+# Download from: https://www.mongodb.com/docs/database-tools/
+```
+
+**Linux:**
 ```bash
-# Copy example configuration
+# Ubuntu/Debian
+sudo apt-get install postgresql-client mongodb-database-tools
+
+# CentOS/RHEL
+sudo yum install postgresql mongodb-database-tools
+```
+
+**macOS:**
+```bash
+# Using Homebrew
+brew install postgresql mongodb/brew/mongodb-database-tools
+```
+
+### 2. Configure Your Databases
+```bash
+# Linux/macOS
 cp config.yaml.example config.yaml
-# Edit config.yaml with your databases
+
+# Windows PowerShell
+Copy-Item config.yaml.example config.yaml
+
+# Edit config.yaml with your databases (use any text editor)
 ```
 
-### 2. Test Configuration
+### 3. Test Configuration
 ```bash
-python3 main.py --test
+# Test database connections and tool availability
+python main.py --test
+
+# Verbose testing to see tool detection
+python main.py --verbose --test
 ```
 
-### 3. Run Backups
+### 4. Run Backups
 ```bash
 # Backup all databases
-python3 main.py --backup-all
+python main.py --backup
 
-# Backup specific database
-python3 main.py --backup postgresql_database
+# List backup files
+python main.py --list-files
 
 # Generate report
-python3 main.py --report backup_report.txt
+python main.py --report backup_report.txt
+
+# Clean old backups
+python main.py --cleanup
 ```
 
 ## 📋 Command Line Interface
 
 ```bash
 # Backup operations
-python3 main.py --backup-all                    # Backup all databases
-python3 main.py --backup <controller-id>        # Backup specific database
+python main.py --backup                        # Backup all configured databases
+python main.py --config custom.yaml --backup  # Use custom configuration file
 
 # File management
-python3 main.py --list-files                   # List backup files
-python3 main.py --cleanup                      # Clean old backups
+python main.py --list-files                    # List all backup files
+python main.py --list-files postgresql_db      # List files for specific database
+python main.py --cleanup                       # Clean old backups based on retention policy
 
-# Reporting
-python3 main.py --report                       # Generate report to console
-python3 main.py --report report.txt           # Generate report to file
+# Reporting and monitoring
+python main.py --report                        # Generate report to console
+python main.py --report report.txt            # Generate report to file
 
 # Testing and debugging
-python3 main.py --test                         # Test all connections
-python3 main.py --verbose --backup-all        # Verbose output
+python main.py --test                          # Test all connections (DB, FTP, Telegram)
+python main.py --verbose --backup             # Verbose output showing tool detection
+python main.py --verbose --test               # Verbose testing with detailed info
+
+# Configuration options
+python main.py --config production.yaml --backup  # Use specific config file
+python main.py --verbose --backup                 # Enable verbose logging
 ```
+
+### Command Line Arguments
+
+| Argument | Description | Example |
+|----------|-------------|---------|
+| `--config FILE` | Specify configuration file | `--config production.yaml` |
+| `--verbose, -v` | Enable verbose output | `--verbose` |
+| `--backup` | Backup all databases | `--backup` |
+| `--list-files [ID]` | List backup files | `--list-files postgresql_db` |
+| `--cleanup` | Clean old backups | `--cleanup` |
+| `--report [FILE]` | Generate report | `--report backup_summary.txt` |
+| `--test` | Test all connections | `--test` |
 
 ## 🏗️ Architecture
 
 ### MVC Pattern
 - **Models**: Database configurations, backup results, and data structures
-- **Views**: Output formatting, reporting, and user interface
-- **Controllers**: Business logic for backup operations
+- **Views**: Output formatting, reporting, and user interface  
+- **Controllers**: Business logic for backup operations with platform-specific optimizations
 
 ### Components
-- **BackupManager**: Orchestrates backup operations
-- **Database Controllers**: MongoDB and PostgreSQL specific backup logic
-- **FTP Service**: File upload and management
-- **Telegram Service**: Notification system
-- **View Classes**: Output formatting and reporting
+- **BackupManager**: Orchestrates backup operations across multiple databases
+- **Database Controllers**: MongoDB and PostgreSQL specific backup logic with Windows compatibility
+  - **BaseController**: Common functionality with smart tool detection
+  - **PostgreSQLController**: pg_dump integration with Windows path detection
+  - **MongoDBController**: mongodump integration with cross-platform support
+- **FTP Service**: File upload and management with SSL support
+- **Telegram Service**: Notification system with comprehensive status reporting
+- **View Classes**: Output formatting and reporting with cross-platform console support
+
+### Windows Compatibility Features
+- **Smart Tool Detection**: Automatically finds database tools in common Windows paths
+- **Tempfile Optimization**: Uses `tempfile.TemporaryDirectory()` for Windows file locking compatibility
+- **Native Compression**: Uses `shutil.make_archive()` with tar fallback for reliable compression
+- **Path Handling**: Proper Windows path separator handling throughout the system
+- **Error Messages**: Windows-specific installation guidance and troubleshooting
 
 ## 🐳 Docker Deployment
 
@@ -344,22 +451,45 @@ The system includes Cilium Network Policies for secure communication:
 
 ### Common Issues
 
-1. **Database Connection Failed**
+1. **Database Tools Not Found (Windows)**
+   ```
+   Error: Command 'pg_dump' not found. Please ensure it's installed and in your PATH.
+   ```
+   **Solutions:**
+   - Install PostgreSQL from https://www.postgresql.org/download/windows/
+   - The system automatically searches common paths: `C:\Program Files\PostgreSQL\*\bin`
+   - Add PostgreSQL bin directory to your system PATH
+   - Verify installation: `where pg_dump.exe`
+
+2. **Tempfile Issues (Windows)**
+   - **Fixed in latest version**: Now uses `tempfile.TemporaryDirectory()` for Windows compatibility
+   - Uses `shutil.make_archive()` instead of tar command for better Windows support
+   - Automatic fallback to tar command if shutil fails
+
+3. **Database Connection Failed**
    - Check database credentials and connectivity
    - Verify database is running and accessible
-   - Test with `python3 main.py --test`
+   - Test with `python main.py --test`
+   - Check firewall settings and network connectivity
 
-2. **FTP Upload Failed**
+4. **FTP Upload Failed**
    - Verify FTP credentials and server accessibility
    - Check firewall and network connectivity
    - Test FTP connection manually
+   - Enable SSL if required: `ssl: true` in config
 
-3. **Telegram Notifications Not Working**
+5. **Telegram Notifications Not Working**
    - Verify bot token and chat ID
    - Ensure bot is added to the chat
    - Check network connectivity to Telegram API
+   - Test with `python main.py --test`
 
-4. **Kubernetes Deployment Issues**
+6. **Backup Archive Creation Failed**
+   - **Windows**: Ensure sufficient disk space in temp directory
+   - **All Platforms**: Check backup directory permissions
+   - **Linux/macOS**: Ensure tar command is available
+
+7. **Kubernetes Deployment Issues**
    - Check External Secrets status: `kubectl get externalsecret`
    - Verify network policies: `kubectl get networkpolicy`
    - Check pod logs: `kubectl logs -n database-backup -l app=database-backup`
@@ -367,11 +497,30 @@ The system includes Cilium Network Policies for secure communication:
 ### Debug Mode
 ```bash
 # Verbose debugging
-python3 main.py --verbose --test
+python main.py --verbose --test
 
-# Check logs
+# Check logs (Linux/macOS)
 tail -f backup.log
+
+# Check logs (Windows PowerShell)
+Get-Content backup.log -Wait
+
+# Test database tool detection
+python main.py --verbose --backup  # Shows tool paths found
 ```
+
+### Platform-Specific Notes
+
+**Windows:**
+- Database tools are automatically detected in common installation paths
+- Uses native Python compression (shutil) instead of tar command
+- Supports both PowerShell and Command Prompt
+- Temporary files handled with Windows-compatible methods
+
+**Linux/macOS:**
+- Standard tar command used for compression with shutil fallback
+- Follows Unix conventions for temporary file handling
+- Standard package manager installation supported
 
 ## 📚 Examples
 
@@ -415,7 +564,32 @@ app.generate_report('backup_report.txt')
 4. Ensure backward compatibility
 5. Test with multiple database types
 
-## 📄 License
+## � Changelog
+
+### Version 2.1.0 (Latest) - Windows Compatibility Release
+- **🔧 Fixed**: Windows tempfile handling issues with `tempfile.TemporaryDirectory()`
+- **🔧 Fixed**: Archive creation using `shutil.make_archive()` with tar fallback
+- **✨ Added**: Automatic database tool detection in Windows installation paths
+- **✨ Added**: Enhanced error messages with Windows-specific installation guidance
+- **✨ Added**: Cross-platform archive extraction with `shutil.unpack_archive()`
+- **🐛 Fixed**: Path separator handling across different operating systems
+- **📚 Improved**: Documentation with Windows-specific troubleshooting and setup instructions
+
+### Version 2.0.0 - Major Architecture Update
+- **✨ Added**: MVC architecture implementation
+- **✨ Added**: Multi-database configuration support
+- **✨ Added**: Kubernetes deployment manifests
+- **✨ Added**: Docker multi-architecture builds
+- **✨ Added**: Comprehensive test suite
+- **✨ Added**: Advanced CLI interface
+
+### Version 1.0.0 - Initial Release
+- **✨ Added**: Basic PostgreSQL and MongoDB backup support
+- **✨ Added**: FTP upload functionality
+- **✨ Added**: Telegram notifications
+- **✨ Added**: Basic retention management
+
+## �📄 License
 
 This project is licensed under the MIT License.
 

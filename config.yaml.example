@@ -1,19 +1,28 @@
 # Database Backup System Configuration
 # Copy this file to config.yaml and configure your databases
+# 
+# IMPORTANT: Ensure database tools are installed:
+# - PostgreSQL: https://www.postgresql.org/download/windows/ (Windows)
+# - MongoDB Tools: https://www.mongodb.com/docs/database-tools/ (All platforms)
+# 
+# The system will automatically detect tools in common installation paths
 
 # Multiple PostgreSQL Databases
 pgsql:
-  - host: localhost
+  - id: pgsql-01
+    host: localhost
     port: 5432
     database: database
     username: myusername
     password: mysecretpassword
-  - host: localhost
+  - id: pgsql-02
+    host: localhost
     port: 5432
     database: testdb
     username: testuser
     password: testpass
-  - host: remote-server.com
+  - id: pgsql-03
+    host: remote-server.com
     port: 5432
     database: production
     username: produser
@@ -51,11 +60,11 @@ telegram:
 
 # Backup Configuration
 backup:
-  directory: ./backups
-  retention_days: 7
-  compression: true
-  log_level: INFO
-  verbose: false
+  directory: ./backups              # Backup storage directory (relative or absolute path)
+  retention_days: 7                 # Keep backups for 7 days before cleanup
+  compression: true                 # Use gzip compression (recommended)
+  log_level: INFO                   # Logging level: DEBUG, INFO, WARNING, ERROR
+  verbose: false                    # Enable verbose output (can also use --verbose flag)
 
 # Single database example (alternative format):
 # pgsql:
