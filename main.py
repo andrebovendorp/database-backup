@@ -144,7 +144,7 @@ class DatabaseBackupApp:
             format=log_format,
             handlers=[
                 logging.StreamHandler(),
-                logging.FileHandler('backup.log')
+                logging.FileHandler('logs/backup.log')
             ]
         )
     
