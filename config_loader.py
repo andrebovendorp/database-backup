@@ -53,7 +53,9 @@ class ConfigLoader:
                     # Multiple PostgreSQL databases
                     for i, pgsql in enumerate(pgsql_configs):
                         pgsql['type'] = 'postgresql'
-                        pgsql['id'] = f"pgsql_{i+1}"  # Add unique ID
+                        # Use explicit ID if provided, otherwise generate one
+                        if 'id' not in pgsql:
+                            pgsql['id'] = f"pgsql_{i}"  # Fallback to auto-generated ID
                         databases.append(pgsql)
             
             # Load MongoDB databases
@@ -63,7 +65,9 @@ class ConfigLoader:
                     # Multiple MongoDB databases
                     for i, mongo in enumerate(mongo_configs):
                         mongo['type'] = 'mongodb'
-                        mongo['id'] = f"mongodb_{i+1}"  # Add unique ID
+                        # Use explicit ID if provided, otherwise generate one
+                        if 'id' not in mongo:
+                            mongo['id'] = f"mongodb_{i}"  # Fallback to auto-generated ID
                         databases.append(mongo)
             
             return databases

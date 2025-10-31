@@ -178,7 +178,7 @@ class TestPostgreSQLController:
         output_file = "/tmp/backup.sql"
         cmd = self.controller._build_pg_dump_command(output_file)
         
-        assert "pg_dump" in cmd
+        assert "pg_dumpall" in cmd
         assert "--file" in cmd
         assert output_file in cmd
         assert "--host" in cmd

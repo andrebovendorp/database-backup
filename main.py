@@ -59,7 +59,7 @@ class DatabaseBackupApp:
             database_configs = config_loader.create_database_configs()
             
             for config, controller_id in database_configs:
-                self.backup_manager.add_database(config)
+                self.backup_manager.add_database(config, controller_id)
                 self.logger.info(f"Loaded database: {controller_id}")
             
             if database_configs:
@@ -290,9 +290,88 @@ class DatabaseBackupApp:
         except Exception as e:
             self.view.display_error(str(e), "Generating report")
     
+    def restore_database(self, backup_file_path: str, controller_id: str, target_database: str = None) -> bool:
+        """Restore database from backup file to target database."""
+        try:
+            if controller_id not in self.backup_manager.controllers:
+                self.view.display_error(f"Controller '{controller_id}' not found")
+                return False
+            
+            controller = self.backup_manager.controllers[controller_id]
+            
+            # If target database is specified, temporarily modify the controller's database config
+            original_database = None
+            if target_database:
+                original_database = controller.db_config.database
+                controller.db_config.database = target_database
+                self.view.display_info(f"Restoring to target database: {target_database}")
+            else:
+                self.view.display_info(f"Restoring to original database: {controller.db_config.database}")
+            
+            # Notify start
+            if self.telegram_service:
+                db_name = target_database or controller.db_config.database
+                self.telegram_service.notify_backup_started(db_name, "restore")
+            
+            # Perform restore
+            self.view.display_info(f"Starting restore from: {backup_file_path}")
+            success = controller.restore_backup(backup_file_path)
+            
+            if success:
+                self.view.display_info("✅ Restore completed successfully!")
+            else:
+                self.view.display_error("❌ Restore failed!")
+            
+            # Notify completion
+            if self.telegram_service:
+                db_name = target_database or controller.db_config.database
+                if success:
+                    self.telegram_service.notify_backup_completed(None)  # Could create a restore result object
+                else:
+                    self.telegram_service.notify_error("Restore operation failed", f"Restoring to {db_name}")
+            
+            # Restore original database config if it was changed
+            if original_database is not None:
+                controller.db_config.database = original_database
+            
+            return success
+            
+        except Exception as e:
+            self.view.display_error(str(e), "Database restore")
+            return False
+    
+    def list_controllers(self):
+        """List all available controller IDs."""
+        if not self.backup_manager.controllers:
+            self.view.display_warning("No controllers configured")
+            return
+        
+        self.view.display_info("Available Controller IDs:")
+        for controller_id, controller in self.backup_manager.controllers.items():
+            db_config = controller.db_config
+            self.view.display_info(f"  • {controller_id}")
+            self.view.display_info(f"    Type: {db_config.db_type.value}")
+            self.view.display_info(f"    Host: {db_config.host}")
+            self.view.display_info(f"    Database: {db_config.database}")
+            self.view.display_info("")
+    
     def test_connections(self):
         """Test all configured connections."""
         self.view.display_info("Testing connections...")
+        
+        # Test database connections
+        if hasattr(self, 'backup_manager') and self.backup_manager.controllers:
+            for controller_id, controller in self.backup_manager.controllers.items():
+                try:
+                    self.view.display_info(f"Testing {controller.db_config.db_type.value} connection: {controller.db_config.database}")
+                    if controller.test_connection():
+                        self.view.display_info(f"Database {controller_id} ({controller.db_config.database}): OK")
+                    else:
+                        self.view.display_error(f"Database {controller_id} ({controller.db_config.database}): FAILED")
+                except Exception as e:
+                    self.view.display_error(f"Database {controller_id} connection test failed: {e}")
+        else:
+            self.view.display_warning("No databases configured")
         
         # Test FTP
         if self.ftp_service:
@@ -320,11 +399,16 @@ def main():
     parser.add_argument('--config', default='config.yaml',
                        help='Configuration file path (default: config.yaml)')
     parser.add_argument('--verbose', '-v', action='store_true', help='Verbose output')
-    parser.add_argument('--backup', action='store_true', help='Backup all databases')
+    parser.add_argument('--backup-all', action='store_true', help='Backup all databases')
+    parser.add_argument('--backup', help='Backup specific database controller ID')
     parser.add_argument('--list-files', help='List backup files for controller ID')
     parser.add_argument('--cleanup', action='store_true', help='Clean up old backups')
     parser.add_argument('--report', help='Generate report (optional output file)')
     parser.add_argument('--test', action='store_true', help='Test connections')
+    parser.add_argument('--list-controllers', action='store_true', help='List all available controller IDs')
+    parser.add_argument('--restore', help='Restore from backup file path')
+    parser.add_argument('--target-controller', help='Target controller ID for restore (required with --restore)')
+    parser.add_argument('--target-database', help='Target database name (optional, overrides controller config)')
     
     args = parser.parse_args()
     
@@ -339,10 +423,7 @@ def main():
         app.load_databases_from_config()
         app.load_services_from_config()
         
-        if args.test:
-            app.test_connections()
-        
-        if args.backup:
+        if args.backup_all:
             results = app.backup_all_databases()
             if not all(results):
                 print("❌ Some backups failed!")
@@ -350,14 +431,43 @@ def main():
             else:
                 print("✅ All backups completed successfully!")
         
-        if args.list_files:
+        elif args.backup:
+            success = app.backup_database(args.backup)
+            if not success:
+                print("❌ Backup failed!")
+                sys.exit(1)
+            else:
+                print("✅ Backup completed successfully!")
+        
+        elif args.restore:
+            if not args.target_controller:
+                print("❌ --target-controller is required with --restore")
+                sys.exit(1)
+            
+            success = app.restore_database(args.restore, args.target_controller, args.target_database)
+            if not success:
+                print("❌ Restore failed!")
+                sys.exit(1)
+            else:
+                print("✅ Restore completed successfully!")
+        
+        elif args.list_files:
             app.list_backup_files(args.list_files)
         
-        if args.cleanup:
+        elif args.cleanup:
             app.cleanup_old_backups()
         
-        if args.report is not None:
+        elif args.report is not None:
             app.generate_report(args.report if args.report else None)
+        
+        elif args.test:
+            app.test_connections()
+        
+        elif args.list_controllers:
+            app.list_controllers()
+        
+        else:
+            parser.print_help()
         
         
     

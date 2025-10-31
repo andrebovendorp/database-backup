@@ -23,9 +23,10 @@ class BackupManager:
         self.controllers: Dict[str, BaseBackupController] = {}
         self.backup_history: List[BackupResult] = []
     
-    def add_database(self, db_config: DatabaseConfig) -> str:
+    def add_database(self, db_config: DatabaseConfig, controller_id: Optional[str] = None) -> str:
         """Add a database to backup management."""
-        controller_id = f"{db_config.db_type.value}_{db_config.database}"
+        if controller_id is None:
+            controller_id = f"{db_config.db_type.value}_{db_config.database}"
         
         if db_config.db_type.value == "mongodb":
             controller = MongoDBBackupController(db_config, self.backup_config)

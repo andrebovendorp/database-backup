@@ -1,0 +1,14 @@
+# Restore Configuration for Target Database
+pgsql:
+- host: your-target-host.com    # Replace with target host
+  port: 5432
+  database: immich_restored     # Replace with target database name
+  username: target_username     # Replace with target username
+  password: "target_password"   # Replace with target password
+
+backup:
+  directory: ./backups
+  retention_days: 7
+  compression: true
+  log_level: INFO
+  verbose: false
