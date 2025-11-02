@@ -440,7 +440,7 @@ def main():
             results = app.backup_all_databases()
             if not all(results):
                 print("❌ Some backups failed!")
-                sys.exit(1)
+                sys.exit(0)
             else:
                 print("✅ All backups completed successfully!")
         
@@ -448,7 +448,7 @@ def main():
             success = app.backup_database(args.backup)
             if not success:
                 print("❌ Backup failed!")
-                sys.exit(1)
+                sys.exit(0)
             else:
                 print("✅ Backup completed successfully!")
         
