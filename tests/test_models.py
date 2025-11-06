@@ -1,6 +1,7 @@
 """
 Unit tests for models.
 """
+import pytest
 import unittest
 from datetime import datetime
 from pathlib import Path
@@ -75,13 +76,13 @@ class TestDatabaseConfig:
     
     def test_database_config_validation(self):
         """Test database configuration validation."""
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             MongoDBConfig(host="", port=27017, database="testdb")
         
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             MongoDBConfig(host="localhost", port=27017, database="")
         
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             MongoDBConfig(host="localhost", port=0, database="testdb")
     
     def test_backup_config_creation(self):
@@ -98,10 +99,10 @@ class TestDatabaseConfig:
     
     def test_backup_config_validation(self):
         """Test backup configuration validation."""
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             BackupConfig(backup_dir="/tmp", retention_days=0)
         
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             BackupConfig(backup_dir="", retention_days=7)
     
     def test_ftp_config_creation(self):
@@ -123,7 +124,7 @@ class TestDatabaseConfig:
     
     def test_ftp_config_validation(self):
         """Test FTP configuration validation."""
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             FTPConfig(host="", username="user", password="pass", remote_dir="/backup")
     
     def test_telegram_config_creation(self):

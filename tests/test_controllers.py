@@ -43,7 +43,7 @@ class TestMongoDBController:
         assert self.controller.backup_config == self.backup_config
         assert self.controller.logger is not None
     
-    @patch('controllers.mongodb_controller.subprocess.run')
+    @patch('controllers.base_controller.subprocess.run')
     def test_create_backup_success(self, mock_run):
         """Test successful backup creation."""
         # Mock successful mongodump
@@ -56,7 +56,7 @@ class TestMongoDBController:
         assert result.database_name == "testdb"
         assert result.is_successful is True
     
-    @patch('controllers.mongodb_controller.subprocess.run')
+    @patch('controllers.base_controller.subprocess.run')
     def test_create_backup_failure(self, mock_run):
         """Test backup creation failure."""
         # Mock failed mongodump
@@ -148,7 +148,7 @@ class TestPostgreSQLController:
         assert self.controller.backup_config == self.backup_config
         assert self.controller.logger is not None
     
-    @patch('controllers.postgresql_controller.subprocess.run')
+    @patch('controllers.base_controller.subprocess.run')
     def test_create_backup_success(self, mock_run):
         """Test successful backup creation."""
         # Mock successful pg_dump
@@ -161,7 +161,7 @@ class TestPostgreSQLController:
         assert result.database_name == "testdb"
         assert result.is_successful is True
     
-    @patch('controllers.postgresql_controller.subprocess.run')
+    @patch('controllers.base_controller.subprocess.run')
     def test_create_backup_failure(self, mock_run):
         """Test backup creation failure."""
         # Mock failed pg_dump
@@ -178,7 +178,7 @@ class TestPostgreSQLController:
         output_file = "/tmp/backup.sql"
         cmd = self.controller._build_pg_dump_command(output_file)
         
-        assert "pg_dumpall" in cmd
+        assert "pg_dump" in cmd
         assert "--file" in cmd
         assert output_file in cmd
         assert "--host" in cmd

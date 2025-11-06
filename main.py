@@ -27,7 +27,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from models.database_config import (
     MongoDBConfig, PostgreSQLConfig, BackupConfig, 
-    FTPConfig, TelegramConfig
+    FTPConfig, TelegramConfig, S3Config
 )
 from controllers.backup_manager import BackupManager
 from config_loader import ConfigLoader
@@ -36,6 +36,11 @@ try:
     from services.ftp_service import FTPService
 except ImportError:
     FTPService = None
+
+try:
+    from services.s3_service import S3Service
+except ImportError:
+    S3Service = None
 
 try:
     from services.telegram_service import TelegramService
@@ -59,6 +64,7 @@ class DatabaseBackupApp:
         # Initialize components
         self.backup_manager = BackupManager(self.backup_config)
         self.ftp_service = FTPService(self.ftp_config) if (self.ftp_config and FTPService) else None
+        self.s3_service = S3Service(self.s3_config) if (self.s3_config and S3Service) else None
         self.telegram_service = TelegramService(self.telegram_config) if (self.telegram_config and TelegramService) else None
         self.view = BackupView(verbose=self.verbose)
         self.report_view = BackupReportView()
@@ -104,6 +110,23 @@ class DatabaseBackupApp:
                 self.ftp_config = ftp_config
                 self.ftp_service = FTPService(ftp_config) if FTPService else None
                 self.logger.info("Loaded FTP configuration from YAML")
+            
+            # Load S3 configuration
+            s3_config_data = config_loader.load_s3_config()
+            if s3_config_data:
+                from models.database_config import S3Config
+                s3_config = S3Config(
+                    bucket=s3_config_data.get('bucket', ''),
+                    region=s3_config_data.get('region', 'us-east-1'),
+                    access_key=s3_config_data.get('access_key', ''),
+                    secret_key=s3_config_data.get('secret_key', ''),
+                    endpoint_url=s3_config_data.get('endpoint_url'),
+                    path_prefix=s3_config_data.get('path_prefix', ''),
+                    enabled=s3_config_data.get('enabled', True)
+                )
+                self.s3_config = s3_config
+                self.s3_service = S3Service(s3_config) if S3Service else None
+                self.logger.info("Loaded S3 configuration from YAML")
             
             # Load Telegram configuration
             telegram_config_data = config_loader.load_telegram_config()
@@ -171,6 +194,21 @@ class DatabaseBackupApp:
         else:
             self.ftp_config = None
         
+        # S3 configuration
+        s3_bucket = os.getenv('S3_BUCKET')
+        if s3_bucket:
+            self.s3_config = S3Config(
+                bucket=s3_bucket,
+                region=os.getenv('S3_REGION', 'us-east-1'),
+                access_key=os.getenv('S3_ACCESS_KEY', ''),
+                secret_key=os.getenv('S3_SECRET_KEY', ''),
+                endpoint_url=os.getenv('S3_ENDPOINT_URL'),
+                path_prefix=os.getenv('S3_PATH_PREFIX', ''),
+                enabled=os.getenv('S3_ENABLED', 'true').lower() == 'true'
+            )
+        else:
+            self.s3_config = None
+        
         # Telegram configuration
         telegram_token = os.getenv('TELEGRAM_BOT_TOKEN')
         if telegram_token:
@@ -210,6 +248,10 @@ class DatabaseBackupApp:
             # Upload to FTP if configured
             if result.is_successful and result.backup_file_path and self.ftp_service:
                 self.upload_to_ftp(result.backup_file_path)
+            
+            # Upload to S3 if configured
+            if result.is_successful and result.backup_file_path and self.s3_service:
+                self.upload_to_s3(result.backup_file_path)
             
             # Notify Telegram
             if self.telegram_service:
@@ -259,6 +301,29 @@ class DatabaseBackupApp:
                 
         except Exception as e:
             self.view.display_error(str(e), "FTP upload")
+            return False
+    
+    def upload_to_s3(self, file_path: str) -> bool:
+        """Upload file to S3."""
+        if not self.s3_service:
+            self.view.display_warning("S3 not configured")
+            return False
+        
+        try:
+            success = self.s3_service.upload_file(file_path)
+            if success:
+                self.view.display_info(f"✅ Uploaded to S3: {Path(file_path).name}")
+            else:
+                self.view.display_error(f"Failed to upload to S3: {Path(file_path).name}")
+            
+            if self.telegram_service:
+                if success:
+                    self.telegram_service.notify_ftp_upload(Path(file_path).name, success)  # Reuse FTP notification for now
+            
+            return success
+                
+        except Exception as e:
+            self.view.display_error(str(e), "S3 upload")
             return False
     
     def cleanup_old_backups(self):
@@ -395,6 +460,15 @@ class DatabaseBackupApp:
                 self.view.display_error(f"FTP connection failed: {e}")
         else:
             self.view.display_warning("FTP not configured")
+        
+        # Test S3
+        if self.s3_service:
+            if self.s3_service.test_connection():
+                self.view.display_info("S3 connection: OK")
+            else:
+                self.view.display_error("S3 connection failed")
+        else:
+            self.view.display_warning("S3 not configured")
         
         # Test Telegram
         if self.telegram_service:
