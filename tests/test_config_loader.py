@@ -17,8 +17,13 @@ class TestConfigLoader:
     def temp_config_file(self):
         """Create a temporary config file."""
         temp_file = tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False)
+        temp_file.close()  # Close the file immediately on Windows
         yield temp_file.name
-        os.unlink(temp_file.name)
+        # Clean up - use try/except for Windows compatibility
+        try:
+            os.unlink(temp_file.name)
+        except PermissionError:
+            pass  # File might still be in use on Windows
     
     @pytest.fixture
     def new_format_config(self, temp_config_file):

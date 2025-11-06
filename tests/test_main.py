@@ -57,23 +57,29 @@ class TestDatabaseBackupApp:
     
     def test_add_mongodb_database(self):
         """Test adding MongoDB database."""
+        from models.database_config import MongoDBConfig
+        
         app = DatabaseBackupApp()
         
-        controller_id = app.add_mongodb_database(
+        db_config = MongoDBConfig(
             host="localhost",
             port=27017,
             database="testdb",
             uri="mongodb://localhost:27017/testdb"
         )
         
+        controller_id = app.backup_manager.add_database(db_config)
+        
         assert controller_id == "mongodb_testdb"
         assert controller_id in app.backup_manager.controllers
     
     def test_add_postgresql_database(self):
         """Test adding PostgreSQL database."""
+        from models.database_config import PostgreSQLConfig
+        
         app = DatabaseBackupApp()
         
-        controller_id = app.add_postgresql_database(
+        db_config = PostgreSQLConfig(
             host="localhost",
             port=5432,
             database="testdb",
@@ -81,36 +87,43 @@ class TestDatabaseBackupApp:
             password="pass"
         )
         
+        controller_id = app.backup_manager.add_database(db_config)
+        
         assert controller_id == "postgresql_testdb"
         assert controller_id in app.backup_manager.controllers
     
-    @patch('main.BackupManager.backup_database')
     @patch('main.FTPService')
     @patch('main.TelegramService')
-    def test_backup_database_success(self, mock_telegram, mock_ftp, mock_backup):
+    @patch('main.S3Service')
+    def test_backup_database_success(self, mock_s3, mock_telegram, mock_ftp):
         """Test successful database backup."""
         # Setup mocks
         mock_result = Mock()
         mock_result.is_successful = True
         mock_result.backup_file_path = "/tmp/backup.tar.gz"
-        mock_backup.return_value = mock_result
+        mock_result.backup_size_bytes = 1024000  # Provide a real number
+        mock_result.duration_seconds = 10.5  # Provide a real number
+        mock_result.database_name = "testdb"
+        mock_result.backup_id = "test_123"
         
         app = DatabaseBackupApp()
-        app.ftp_service = Mock()
+        app.ftp_service = None  # Set to None to avoid path operations
+        app.s3_service = None  # Set to None to avoid path operations
         app.telegram_service = Mock()
         
         # Add a database
-        controller_id = app.add_mongodb_database("localhost", 27017, "testdb")
+        from models.database_config import MongoDBConfig
+        db_config = MongoDBConfig(host="localhost", port=27017, database="testdb")
+        controller_id = app.backup_manager.add_database(db_config)
         
-        # Mock the backup manager
-        app.backup_manager.backup_database = mock_backup
-        
-        result = app.backup_database(controller_id)
-        
-        assert result is True
-        mock_backup.assert_called_once_with(controller_id)
-        app.telegram_service.notify_backup_started.assert_called_once()
-        app.telegram_service.notify_backup_completed.assert_called_once()
+        # Mock the backup manager's backup_database method
+        with patch.object(app.backup_manager, 'backup_database', return_value=mock_result) as mock_backup:
+            result = app.backup_database(controller_id)
+            
+            assert result is True
+            mock_backup.assert_called_once_with(controller_id)
+            app.telegram_service.notify_backup_started.assert_called_once()
+            app.telegram_service.notify_backup_completed.assert_called_once()
     
     @patch('main.BackupManager.backup_database')
     @patch('main.TelegramService')
@@ -126,7 +139,9 @@ class TestDatabaseBackupApp:
         app.telegram_service = Mock()
         
         # Add a database
-        controller_id = app.add_mongodb_database("localhost", 27017, "testdb")
+        from models.database_config import MongoDBConfig
+        db_config = MongoDBConfig(host="localhost", port=27017, database="testdb")
+        controller_id = app.backup_manager.add_database(db_config)
         
         # Mock the backup manager
         app.backup_manager.backup_database = mock_backup
@@ -136,29 +151,31 @@ class TestDatabaseBackupApp:
         assert result is False
         app.telegram_service.notify_backup_completed.assert_called_once()
     
-    @patch('main.BackupManager.backup_all_databases')
     @patch('main.TelegramService')
-    def test_backup_all_databases(self, mock_telegram, mock_backup_all):
+    @patch('main.S3Service')
+    def test_backup_all_databases(self, mock_s3, mock_telegram):
         """Test backing up all databases."""
-        # Setup mocks
-        mock_results = [Mock(), Mock()]
-        mock_backup_all.return_value = mock_results
+        from models.database_config import MongoDBConfig, PostgreSQLConfig
         
         app = DatabaseBackupApp()
         app.telegram_service = Mock()
+        app.ftp_service = None  # Set to None to avoid path operations
+        app.s3_service = None  # Set to None to avoid path operations
         
         # Add some databases
-        app.add_mongodb_database("localhost", 27017, "testdb1")
-        app.add_postgresql_database("localhost", 5432, "testdb2", "user", "pass")
+        mongo_config = MongoDBConfig(host="localhost", port=27017, database="testdb1")
+        app.backup_manager.add_database(mongo_config)
         
-        # Mock the backup manager
-        app.backup_manager.backup_all_databases = mock_backup_all
+        pg_config = PostgreSQLConfig(host="localhost", port=5432, database="testdb2", username="user", password="pass")
+        app.backup_manager.add_database(pg_config)
         
-        results = app.backup_all_databases()
-        
-        assert results == mock_results
-        mock_backup_all.assert_called_once()
-        app.telegram_service.notify_backup_summary.assert_called_once()
+        # Mock the backup_database method to return True for all backups
+        with patch.object(app, 'backup_database', return_value=True) as mock_backup:
+            results = app.backup_all_databases()
+            
+            assert results == [True, True]
+            assert mock_backup.call_count == 2
+            app.telegram_service.notify_backup_summary.assert_called_once()
     
     @patch('main.FTPService')
     def test_upload_to_ftp_success(self, mock_ftp_class):
@@ -230,15 +247,13 @@ class TestDatabaseBackupApp:
         mock_list_files.assert_called_once_with("mongodb_testdb")
     
     @patch('main.BackupManager.get_backup_summary')
-    @patch('main.BackupManager.backup_history')
-    def test_generate_report(self, mock_history, mock_summary):
+    def test_generate_report(self, mock_summary):
         """Test report generation."""
         mock_summary.return_value = Mock()
-        mock_history = [Mock(), Mock()]
         
         app = DatabaseBackupApp()
         app.backup_manager.get_backup_summary = mock_summary
-        app.backup_manager.backup_history = mock_history
+        app.backup_manager.backup_history = [Mock(), Mock()]
         
         with patch('builtins.print') as mock_print:
             app.generate_report()

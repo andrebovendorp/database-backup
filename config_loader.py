@@ -44,6 +44,10 @@ class ConfigLoader:
             with open(self.config_file, 'r') as f:
                 config = yaml.safe_load(f)
             
+            # Handle empty or None config
+            if config is None:
+                config = {}
+            
             databases = []
             
             # Support both old and new config structure

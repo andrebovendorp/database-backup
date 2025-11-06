@@ -180,9 +180,11 @@ class TestBackupView:
         """Test display error message."""
         self.view.display_error("Database connection failed", "Backup operation")
         
-        mock_print.assert_called_once()
-        call_args = mock_print.call_args[0][0]
-        assert "ERROR: Database connection failed" in call_args
+        assert mock_print.call_count == 2  # Error message + context
+        first_call = mock_print.call_args_list[0][0][0]
+        assert "ERROR: Database connection failed" in first_call
+        second_call = mock_print.call_args_list[1][0][0]
+        assert "Context: Backup operation" in second_call
     
     @patch('builtins.print')
     def test_display_info(self, mock_print):
@@ -308,10 +310,11 @@ class TestBackupReportView:
                 content = f.read()
             assert content == report_content
     
-    def test_save_report_failure(self):
+    @patch('builtins.open', side_effect=PermissionError("Access denied"))
+    def test_save_report_failure(self, mock_open):
         """Test report saving failure."""
-        # Try to save to a path that doesn't exist and can't be created
-        invalid_path = "/invalid/path/that/does/not/exist/report.txt"
+        # Mock open to raise PermissionError
+        invalid_path = "c:/invalid/path/report.txt"
         
         result = self.report_view.save_report("Test content", invalid_path)
         
