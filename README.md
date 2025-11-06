@@ -8,7 +8,10 @@ A comprehensive Python-based database backup solution supporting MongoDB and Pos
 - **Cross-Platform Compatibility**: Windows, Linux, and macOS support with platform-specific optimizations
 - **Windows-Optimized**: Automatic database tool detection, improved tempfile handling, and native compression
 - **MVC Architecture**: Clean separation of concerns with extensible controller pattern
-- **FTP Upload**: Automatic backup upload to FTP servers with SSL support
+- **Multiple Storage Targets**: 
+  - **Local Storage**: Configurable local backup directory
+  - **FTP Upload**: Automatic backup upload to FTP servers with SSL support
+  - **S3 Storage**: Support for AWS S3 and S3-compatible services (MinIO, DigitalOcean Spaces, Backblaze B2, etc.)
 - **Telegram Notifications**: Real-time backup status notifications with detailed reporting
 - **Retention Management**: Automatic cleanup of old backups with configurable retention policies
 - **Comprehensive Logging**: Detailed logging with debug support and file rotation
@@ -17,11 +20,32 @@ A comprehensive Python-based database backup solution supporting MongoDB and Pos
 - **Kubernetes Ready**: Complete K8s manifests with CronJob and security policies
 - **Docker Support**: Multi-architecture Docker images (AMD64/ARM64)
 - **Executable Builds**: Standalone executables for all platforms
-- **Configuration-Driven**: YAML-based database configuration with environment variable fallback
+- **Configuration-Driven**: YAML-based configuration with clear separation of sources (databases) and targets (storage destinations)
 - **Smart Tool Detection**: Automatic detection of database tools in common installation paths
 - **Robust Error Handling**: Graceful failure handling with detailed error reporting
 
 ## 🆕 Recent Improvements
+
+### S3 Storage Support (v3.0.0)
+- **S3-Compatible Storage**: Full support for AWS S3 and S3-compatible services
+  - AWS S3
+  - MinIO (self-hosted or cloud)
+  - DigitalOcean Spaces
+  - Backblaze B2
+  - Any S3-compatible storage service
+- **Flexible Configuration**: Support for custom endpoints and path prefixes
+- **Automatic Upload**: Backups automatically uploaded to S3 after creation
+- **Retention Management**: Clean old backups from S3 based on retention policy
+- **Connection Testing**: Built-in S3 connection validation
+- **Presigned URLs**: Generate temporary download links for backup files
+
+### Configuration Refactoring (v3.0.0)
+- **Sources and Targets**: Clear separation of database sources from backup targets
+  - **Sources**: Database connections to backup (PostgreSQL, MongoDB)
+  - **Targets**: Storage destinations (Local, FTP, S3, Telegram)
+- **Backward Compatibility**: Old configuration format still supported
+- **Enable/Disable Targets**: Easily enable or disable specific backup targets
+- **Multiple Targets**: Send backups to multiple destinations simultaneously
 
 ### Windows Compatibility Enhancements (v2.1.0)
 - **Fixed Tempfile Issues**: Resolved Windows file locking problems by replacing `tempfile.NamedTemporaryFile` with `tempfile.TemporaryDirectory()`
@@ -64,6 +88,9 @@ cd database-backup
 
 # Install dependencies
 pip install -r requirements.txt
+
+# Note: boto3 is required for S3 support
+# It's included in requirements.txt
 ```
 
 ### Option 2: Docker
@@ -88,46 +115,76 @@ kubectl apply -k k8s/
 
 ### YAML Configuration (Recommended)
 
-Create `config.yaml`:
+Create `config.yaml` with sources and targets:
+
 ```yaml
-# PostgreSQL Databases
-pgsql:
-  - host: localhost
-    port: 5432
-    database: database
-    username: myusername
-    password: mysecretpassword
-  - host: localhost
-    port: 5432
-    database: testdb
-    username: testuser
-    password: testpass
+# ============================================================================
+# SOURCES - Database connections to backup
+# ============================================================================
+sources:
+  # PostgreSQL Databases
+  pgsql:
+    - id: pgsql-prod
+      host: localhost
+      port: 5432
+      database: production
+      username: myusername
+      password: mysecretpassword
+    - id: pgsql-dev
+      host: localhost
+      port: 5432
+      database: development
+      username: devuser
+      password: devpass
 
-# MongoDB Databases  
-mongodb:
-  - host: localhost
-    port: 27017
-    database: database
-    uri: mongodb://localhost:27017/database
-  - host: localhost
-    port: 27017
-    database: testdb
-    uri: mongodb://localhost:27017/testdb
+  # MongoDB Databases  
+  mongodb:
+    - id: mongo-prod
+      host: localhost
+      port: 27017
+      database: production
+      uri: mongodb://localhost:27017/production
+    - id: mongo-dev
+      host: localhost
+      port: 27017
+      database: development
+      uri: mongodb://localhost:27017/development
 
-# FTP Configuration (optional)
-ftp:
-  host: storage.nullservers.com
-  port: 21
-  username: kube
-  password: your_ftp_password
-  remote_dir: /backup/mongodb-cron
-  ssl: false
+# ============================================================================
+# TARGETS - Backup destinations
+# ============================================================================
+targets:
+  # FTP Configuration (optional)
+  ftp:
+    enabled: true
+    host: storage.example.com
+    port: 21
+    username: backup_user
+    password: your_ftp_password
+    remote_dir: /backup/db-backups
+    ssl: false
 
-# Telegram Configuration (optional)
-telegram:
-  bot_token: your_bot_token
-  chat_id: your_chat_id
-  enabled: true
+  # S3 Configuration (optional) - supports AWS S3 and S3-compatible services
+  s3:
+    enabled: true
+    bucket: my-backup-bucket
+    region: us-east-1
+    access_key: YOUR_ACCESS_KEY
+    secret_key: YOUR_SECRET_KEY
+    # endpoint_url: https://nyc3.digitaloceanspaces.com  # For S3-compatible services
+    # path_prefix: db-backups/  # Optional prefix for organizing backups in bucket
+    
+    # Examples for different providers:
+    # - AWS S3: Just set bucket, region, access_key, and secret_key
+    # - MinIO: Set endpoint_url to your MinIO server (e.g., http://localhost:9000)
+    # - DigitalOcean Spaces: endpoint_url = https://nyc3.digitaloceanspaces.com
+    # - Backblaze B2: endpoint_url = https://s3.us-west-000.backblazeb2.com
+
+  # Telegram Configuration (optional)
+  telegram:
+    enabled: true
+    bot_token: your_bot_token
+    chat_id: your_chat_id
 
 # Backup Configuration
 backup:
@@ -137,6 +194,8 @@ backup:
   log_level: INFO
   verbose: false
 ```
+
+**Note:** The old configuration format (without `sources` and `targets` sections) is still supported for backward compatibility.
 
 ### Environment Variables
 
@@ -151,12 +210,21 @@ LOG_LEVEL=INFO
 VERBOSE=false
 
 # FTP Configuration (optional)
-FTP_HOST=storage.nullservers.com
+FTP_HOST=storage.example.com
 FTP_PORT=21
-FTP_USERNAME=kube
+FTP_USERNAME=backup_user
 FTP_PASSWORD=your_ftp_password
-FTP_REMOTE_DIR=/backup/mongodb-cron
+FTP_REMOTE_DIR=/backup/db-backups
 FTP_SSL=false
+
+# S3 Configuration (optional)
+S3_ENABLED=true
+S3_BUCKET=my-backup-bucket
+S3_REGION=us-east-1
+S3_ACCESS_KEY=YOUR_ACCESS_KEY
+S3_SECRET_KEY=YOUR_SECRET_KEY
+# S3_ENDPOINT_URL=https://nyc3.digitaloceanspaces.com  # For S3-compatible services
+# S3_PATH_PREFIX=db-backups/  # Optional prefix
 
 # Telegram Configuration (optional)
 TELEGRAM_BOT_TOKEN=your_bot_token
@@ -207,10 +275,10 @@ Copy-Item config.yaml.example config.yaml
 
 ### 3. Test Configuration
 ```bash
-# Test database connections and tool availability
+# Test database connections and storage targets (FTP, S3)
 python main.py --test
 
-# Verbose testing to see tool detection
+# Verbose testing to see tool detection and connection details
 python main.py --verbose --test
 ```
 
@@ -233,8 +301,8 @@ python main.py --cleanup
 
 ```bash
 # Backup operations
-python main.py --backup                        # Backup all configured databases
-python main.py --config custom.yaml --backup  # Use custom configuration file
+python main.py --backup-all                    # Backup all configured databases
+python main.py --config custom.yaml --backup-all  # Use custom configuration file
 
 # File management
 python main.py --list-files                    # List all backup files
@@ -246,14 +314,22 @@ python main.py --report                        # Generate report to console
 python main.py --report report.txt            # Generate report to file
 
 # Testing and debugging
-python main.py --test                          # Test all connections (DB, FTP, Telegram)
-python main.py --verbose --backup             # Verbose output showing tool detection
+python main.py --test                          # Test all connections (DB, FTP, S3, Telegram)
+python main.py --verbose --backup-all         # Verbose output showing tool detection
 python main.py --verbose --test               # Verbose testing with detailed info
 
 # Configuration options
-python main.py --config production.yaml --backup  # Use specific config file
-python main.py --verbose --backup                 # Enable verbose logging
+python main.py --config production.yaml --backup-all  # Use specific config file
+python main.py --verbose --backup-all                 # Enable verbose logging
 ```
+
+### Storage Targets
+
+Backups are automatically uploaded to all enabled targets:
+- **Local Storage**: Always saved to the configured `backup.directory`
+- **FTP**: Uploaded if `targets.ftp.enabled: true`
+- **S3**: Uploaded if `targets.s3.enabled: true`
+- **Telegram**: Notifications sent if `targets.telegram.enabled: true`
 
 ### Command Line Arguments
 
@@ -261,11 +337,11 @@ python main.py --verbose --backup                 # Enable verbose logging
 |----------|-------------|---------|
 | `--config FILE` | Specify configuration file | `--config production.yaml` |
 | `--verbose, -v` | Enable verbose output | `--verbose` |
-| `--backup` | Backup all databases | `--backup` |
+| `--backup-all` | Backup all databases | `--backup-all` |
 | `--list-files [ID]` | List backup files | `--list-files postgresql_db` |
 | `--cleanup` | Clean old backups | `--cleanup` |
 | `--report [FILE]` | Generate report | `--report backup_summary.txt` |
-| `--test` | Test all connections | `--test` |
+| `--test` | Test all connections (DB, FTP, S3, Telegram) | `--test` |
 
 ## 🏗️ Architecture
 
@@ -280,7 +356,9 @@ python main.py --verbose --backup                 # Enable verbose logging
   - **BaseController**: Common functionality with smart tool detection
   - **PostgreSQLController**: pg_dump integration with Windows path detection
   - **MongoDBController**: mongodump integration with cross-platform support
-- **FTP Service**: File upload and management with SSL support
+- **Storage Services**:
+  - **FTP Service**: File upload and management with SSL support
+  - **S3 Service**: S3-compatible storage with automatic upload and retention management
 - **Telegram Service**: Notification system with comprehensive status reporting
 - **View Classes**: Output formatting and reporting with cross-platform console support
 
@@ -478,18 +556,29 @@ The system includes Cilium Network Policies for secure communication:
    - Test FTP connection manually
    - Enable SSL if required: `ssl: true` in config
 
-5. **Telegram Notifications Not Working**
+5. **S3 Upload Failed**
+   ```
+   Error: Failed to upload to S3: Access Denied
+   ```
+   **Solutions:**
+   - Verify S3 access key and secret key
+   - Check bucket permissions and IAM policies
+   - Ensure bucket exists and is accessible
+   - For S3-compatible services, verify endpoint_url
+   - Test with `python main.py --test`
+
+6. **Telegram Notifications Not Working**
    - Verify bot token and chat ID
    - Ensure bot is added to the chat
    - Check network connectivity to Telegram API
    - Test with `python main.py --test`
 
-6. **Backup Archive Creation Failed**
+7. **Backup Archive Creation Failed**
    - **Windows**: Ensure sufficient disk space in temp directory
    - **All Platforms**: Check backup directory permissions
    - **Linux/macOS**: Ensure tar command is available
 
-7. **Kubernetes Deployment Issues**
+8. **Kubernetes Deployment Issues**
    - Check External Secrets status: `kubectl get externalsecret`
    - Verify network policies: `kubectl get networkpolicy`
    - Check pod logs: `kubectl logs -n database-backup -l app=database-backup`
@@ -527,16 +616,70 @@ python main.py --verbose --backup  # Shows tool paths found
 ### Basic Usage
 ```bash
 # Configure databases in config.yaml
-python3 main.py --backup-all
+python main.py --backup-all
+```
+
+### S3-Compatible Services
+
+**AWS S3:**
+```yaml
+targets:
+  s3:
+    enabled: true
+    bucket: my-backup-bucket
+    region: us-east-1
+    access_key: AKIAIOSFODNN7EXAMPLE
+    secret_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+```
+
+**MinIO:**
+```yaml
+targets:
+  s3:
+    enabled: true
+    bucket: backups
+    region: us-east-1  # MinIO requires a region but it's not used
+    access_key: minioadmin
+    secret_key: minioadmin
+    endpoint_url: http://localhost:9000
+    path_prefix: database-backups/
+```
+
+**DigitalOcean Spaces:**
+```yaml
+targets:
+  s3:
+    enabled: true
+    bucket: my-space
+    region: nyc3
+    access_key: YOUR_SPACES_KEY
+    secret_key: YOUR_SPACES_SECRET
+    endpoint_url: https://nyc3.digitaloceanspaces.com
+    path_prefix: backups/databases/
+```
+
+**Backblaze B2:**
+```yaml
+targets:
+  s3:
+    enabled: true
+    bucket: my-b2-bucket
+    region: us-west-000
+    access_key: YOUR_B2_KEY_ID
+    secret_key: YOUR_B2_APPLICATION_KEY
+    endpoint_url: https://s3.us-west-000.backblazeb2.com
 ```
 
 ### Advanced Usage
 ```bash
 # With custom configuration
-python3 main.py --config production.yaml --backup-all
+python main.py --config production.yaml --backup-all
 
 # With cleanup and reporting
-python3 main.py --backup-all --cleanup --report daily_report.txt
+python main.py --backup-all --cleanup --report daily_report.txt
+
+# Test all storage targets
+python main.py --test
 ```
 
 ### Programmatic Usage
@@ -564,9 +707,20 @@ app.generate_report('backup_report.txt')
 4. Ensure backward compatibility
 5. Test with multiple database types
 
-## � Changelog
+## 📝 Changelog
 
-### Version 2.1.0 (Latest) - Windows Compatibility Release
+### Version 3.0.0 (Latest) - S3 Storage & Configuration Refactoring
+- **✨ Added**: S3 storage support for AWS S3 and S3-compatible services (MinIO, DigitalOcean Spaces, Backblaze B2)
+- **✨ Added**: S3Service with upload, download, list, delete, and cleanup functionality
+- **✨ Added**: Presigned URL generation for temporary backup file access
+- **✨ Added**: S3 connection testing in `--test` command
+- **🔧 Refactored**: Configuration structure with clear separation of sources (databases) and targets (storage)
+- **🔧 Improved**: ConfigLoader with backward compatibility for old config format
+- **🔧 Added**: Environment variable support for S3 configuration
+- **📦 Updated**: Added boto3 dependency for S3 support
+- **📚 Updated**: Comprehensive documentation with S3 examples for different providers
+
+### Version 2.1.0 - Windows Compatibility Release
 - **🔧 Fixed**: Windows tempfile handling issues with `tempfile.TemporaryDirectory()`
 - **🔧 Fixed**: Archive creation using `shutil.make_archive()` with tar fallback
 - **✨ Added**: Automatic database tool detection in Windows installation paths

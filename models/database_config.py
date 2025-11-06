@@ -124,3 +124,25 @@ class TelegramConfig:
                 raise ValueError("Telegram bot token is required when enabled")
             if not self.chat_id:
                 raise ValueError("Telegram chat ID is required when enabled")
+
+
+@dataclass
+class S3Config:
+    """S3 storage configuration for S3-compatible services."""
+    bucket: str
+    region: str = "us-east-1"
+    access_key: Optional[str] = None
+    secret_key: Optional[str] = None
+    endpoint_url: Optional[str] = None  # For S3-compatible services like MinIO, DigitalOcean Spaces, etc.
+    path_prefix: str = ""  # Optional prefix for organizing backups in bucket
+    enabled: bool = True
+    
+    def __post_init__(self):
+        """Validate S3 configuration."""
+        if self.enabled:
+            if not self.bucket:
+                raise ValueError("S3 bucket is required when enabled")
+            if not self.access_key:
+                raise ValueError("S3 access key is required when enabled")
+            if not self.secret_key:
+                raise ValueError("S3 secret key is required when enabled")
