@@ -44,11 +44,20 @@ class ConfigLoader:
             with open(self.config_file, 'r') as f:
                 config = yaml.safe_load(f)
             
+            # Handle empty or None config
+            if config is None:
+                config = {}
+            
             databases = []
             
+            # Support both old and new config structure
+            # New structure: sources.pgsql, sources.mongodb
+            # Old structure: pgsql, mongodb
+            sources = config.get('sources', config)  # Fallback to root if no sources key
+            
             # Load PostgreSQL databases
-            if 'pgsql' in config:
-                pgsql_configs = config['pgsql']
+            if 'pgsql' in sources:
+                pgsql_configs = sources['pgsql']
                 if isinstance(pgsql_configs, list):
                     # Multiple PostgreSQL databases
                     for i, pgsql in enumerate(pgsql_configs):
@@ -59,8 +68,8 @@ class ConfigLoader:
                         databases.append(pgsql)
             
             # Load MongoDB databases
-            if 'mongodb' in config:
-                mongo_configs = config['mongodb']
+            if 'mongodb' in sources:
+                mongo_configs = sources['mongodb']
                 if isinstance(mongo_configs, list):
                     # Multiple MongoDB databases
                     for i, mongo in enumerate(mongo_configs):
@@ -84,7 +93,36 @@ class ConfigLoader:
             with open(self.config_file, 'r') as f:
                 config = yaml.safe_load(f)
             
-            return config.get('ftp')
+            # Support both old and new config structure
+            targets = config.get('targets', config)
+            ftp_config = targets.get('ftp')
+            
+            # Check if FTP is explicitly disabled
+            if ftp_config and ftp_config.get('enabled', True) == False:
+                return None
+            
+            return ftp_config
+        except Exception:
+            return None
+    
+    def load_s3_config(self) -> Optional[Dict[str, Any]]:
+        """Load S3 configuration from YAML file."""
+        if not YAML_AVAILABLE:
+            return None
+        
+        try:
+            with open(self.config_file, 'r') as f:
+                config = yaml.safe_load(f)
+            
+            # S3 config is only in new structure under targets
+            targets = config.get('targets', {})
+            s3_config = targets.get('s3')
+            
+            # Check if S3 is explicitly disabled
+            if s3_config and s3_config.get('enabled', True) == False:
+                return None
+            
+            return s3_config
         except Exception:
             return None
     
@@ -97,7 +135,17 @@ class ConfigLoader:
             with open(self.config_file, 'r') as f:
                 config = yaml.safe_load(f)
             
-            return config.get('telegram')
+            # New structure: notifications.telegram
+            # Old structure (deprecated): targets.telegram or root telegram
+            notifications = config.get('notifications', {})
+            telegram_config = notifications.get('telegram')
+            
+            # Fallback to old structure for backward compatibility
+            if not telegram_config:
+                targets = config.get('targets', config)
+                telegram_config = targets.get('telegram')
+            
+            return telegram_config
         except Exception:
             return None
     
