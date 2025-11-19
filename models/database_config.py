@@ -76,14 +76,14 @@ class PostgreSQLConfig(DatabaseConfig):
 class BackupConfig:
     """Backup configuration settings."""
     backup_dir: str
-    retention_days: int = 7
+    retention_days: int = 14
     compression: bool = True
     timestamp_format: str = "%Y-%m-%d-%H-%M-%S"
     
     def __post_init__(self):
         """Validate backup configuration."""
-        if self.retention_days < 1:
-            raise ValueError("Retention days must be at least 1")
+        if self.retention_days < 7:
+            raise ValueError("Retention days must be at least 7")
         if not self.backup_dir:
             raise ValueError("Backup directory is required")
 
