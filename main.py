@@ -265,6 +265,10 @@ class DatabaseBackupApp:
         """Clean up old backup files."""
         try:
             cleanup_results = self.backup_manager.cleanup_all_backups()
+
+            remote_cleanup_results = self.cleanup_remote_backups()
+            cleanup_results.update(remote_cleanup_results)
+
             self.view.display_cleanup_results(cleanup_results)
             
             # Calculate total deleted files and size
@@ -275,6 +279,29 @@ class DatabaseBackupApp:
             
         except Exception as e:
             self.view.display_error(str(e), "Cleanup")
+
+    def cleanup_remote_backups(self) -> dict:
+        """Clean up old remote backup files for configured storage services."""
+        remote_results = {}
+
+        if self.ftp_service:
+            try:
+                with self.ftp_service:
+                    deleted_ftp_files = self.ftp_service.cleanup_old_files(self.backup_config.retention_days)
+                remote_results["remote_ftp"] = deleted_ftp_files
+            except Exception as e:
+                self.logger.error(f"Failed to cleanup FTP backups: {e}")
+                remote_results["remote_ftp"] = []
+
+        if self.s3_service:
+            try:
+                deleted_s3_files = self.s3_service.cleanup_old_files(self.backup_config.retention_days)
+                remote_results["remote_s3"] = deleted_s3_files
+            except Exception as e:
+                self.logger.error(f"Failed to cleanup S3 backups: {e}")
+                remote_results["remote_s3"] = []
+
+        return remote_results
     
     def list_backup_files(self, controller_id: Optional[str] = None):
         """List backup files."""

@@ -212,6 +212,27 @@ class TestDatabaseBackupApp:
         app.cleanup_old_backups()
         
         mock_cleanup.assert_called_once()
+
+    @patch('main.BackupManager.cleanup_all_backups')
+    def test_cleanup_old_backups_with_remote(self, mock_cleanup):
+        """Test cleanup includes configured remote storage cleanup."""
+        mock_cleanup.return_value = {"mongodb_testdb": ["old1.tar.gz"]}
+
+        app = DatabaseBackupApp()
+        app.backup_manager.cleanup_all_backups = mock_cleanup
+
+        app.ftp_service = Mock()
+        app.ftp_service.__enter__ = Mock(return_value=app.ftp_service)
+        app.ftp_service.__exit__ = Mock(return_value=None)
+        app.ftp_service.cleanup_old_files.return_value = ["ftp_old.tar.gz"]
+
+        app.s3_service = Mock()
+        app.s3_service.cleanup_old_files.return_value = ["s3_old.tar.gz"]
+
+        app.cleanup_old_backups()
+
+        app.ftp_service.cleanup_old_files.assert_called_once_with(app.backup_config.retention_days)
+        app.s3_service.cleanup_old_files.assert_called_once_with(app.backup_config.retention_days)
     
     @patch('main.BackupManager.list_backup_files')
     def test_list_backup_files(self, mock_list_files):
