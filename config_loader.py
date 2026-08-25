@@ -13,7 +13,7 @@ try:
 except ImportError:
     YAML_AVAILABLE = False
 
-from models.database_config import MongoDBConfig, PostgreSQLConfig
+from models.database_config import MongoDBConfig, PostgreSQLConfig, MySQLConfig
 
 
 class ConfigLoader:
@@ -69,6 +69,18 @@ class ConfigLoader:
                         if 'id' not in mongo:
                             mongo['id'] = f"mongodb_{i}"  # Fallback to auto-generated ID
                         databases.append(mongo)
+
+            # Load MySQL databases
+            if 'mysql' in config:
+                mysql_configs = config['mysql']
+                if isinstance(mysql_configs, list):
+                    # Multiple MySQL databases
+                    for i, mysql in enumerate(mysql_configs):
+                        mysql['type'] = 'mysql'
+                        # Use explicit ID if provided, otherwise generate one
+                        if 'id' not in mysql:
+                            mysql['id'] = f"mysql_{i}"  # Fallback to auto-generated ID
+                        databases.append(mysql)
             
             return databases
             
@@ -141,6 +153,15 @@ class ConfigLoader:
                         username=db_config.get('username', ''),
                         password=db_config.get('password', ''),
                         uri=db_config.get('uri', '')
+                    )
+
+                elif db_config['type'] == 'mysql':
+                    config = MySQLConfig(
+                        host=db_config['host'],
+                        port=db_config.get('port', 3306),
+                        database=db_config['database'],
+                        username=db_config.get('username', ''),
+                        password=db_config.get('password', '')
                     )
                 
                 else:

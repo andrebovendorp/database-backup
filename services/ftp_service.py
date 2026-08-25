@@ -41,6 +41,7 @@ class FTPService:
             
         except Exception as e:
             self.logger.error(f"Failed to connect to FTP server: {e}")
+            self._connection = None
             return False
     
     def disconnect(self):

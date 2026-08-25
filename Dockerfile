@@ -10,7 +10,13 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 # Install system dependencies for database clients
-RUN apk update; apk add --no-cache postgresql-client mongodb-tools
+# - postgresql-client provides pg_dump/psql
+# - mongodb-tools provides mongodump/mongorestore
+# - mariadb-client provides mysql/mysqldump compatible binaries
+RUN apk update; apk add --no-cache postgresql-client mongodb-tools mariadb-client
+
+# MYSQL_PWD is consumed at runtime by the app when MySQL credentials are configured.
+# Do not set secrets in the image; pass them through config/env at deploy time.
 
 # Copy requirements first for better Docker layer caching
 COPY . .

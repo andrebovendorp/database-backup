@@ -1,10 +1,10 @@
 # Database Backup System
 
-A comprehensive Python-based database backup solution supporting MongoDB and PostgreSQL with FTP upload, Telegram notifications, and Kubernetes deployment.
+A comprehensive Python-based database backup solution supporting MongoDB, PostgreSQL, and MySQL with FTP upload, Telegram notifications, and Kubernetes deployment.
 
 ## 🚀 Features
 
-- **Multi-Database Support**: MongoDB and PostgreSQL with full backup/restore capabilities
+- **Multi-Database Support**: MongoDB, PostgreSQL, and MySQL with full backup/restore capabilities
 - **Cross-Platform Compatibility**: Windows, Linux, and macOS support with platform-specific optimizations
 - **Windows-Optimized**: Automatic database tool detection, improved tempfile handling, and native compression
 - **MVC Architecture**: Clean separation of concerns with extensible controller pattern
@@ -55,6 +55,11 @@ A comprehensive Python-based database backup solution supporting MongoDB and Pos
 **For MongoDB backups:**
 - **All Platforms**: Install MongoDB Database Tools from https://www.mongodb.com/docs/database-tools/
 - The system will automatically detect tools in common installation paths
+
+**For MySQL backups:**
+- **Windows**: Install MySQL client tools (mysqldump/mysql) via MySQL Installer or package manager
+- **Linux**: `sudo apt-get install mysql-client` or your distro equivalent
+- **macOS**: `brew install mysql-client`
 
 ### Option 1: Python Package
 ```bash
@@ -113,6 +118,14 @@ mongodb:
     port: 27017
     database: testdb
     uri: mongodb://localhost:27017/testdb
+
+# MySQL Databases
+mysql:
+  - host: localhost
+    port: 3306
+    database: appdb
+    username: appuser
+    password: apppass
 
 # FTP Configuration (optional)
 ftp:

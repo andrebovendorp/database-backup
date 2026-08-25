@@ -4,6 +4,7 @@ PostgreSQL backup controller implementation.
 import os
 import tempfile
 import stat
+import subprocess
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
@@ -69,8 +70,7 @@ class PostgreSQLBackupController(BaseBackupController):
     
     def _execute_command_with_pgpass(self, command: List[str], pgpass_path: Optional[str], timeout: int = 300) -> tuple:
         """Execute PostgreSQL command with .pgpass file environment."""
-        import subprocess
-        
+
         try:
             # Prepare environment with PGPASSFILE and other PG environment variables
             env = os.environ.copy()

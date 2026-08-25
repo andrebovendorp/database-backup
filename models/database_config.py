@@ -10,6 +10,7 @@ class DatabaseType(Enum):
     """Supported database types."""
     MONGODB = "mongodb"
     POSTGRESQL = "postgresql"
+    MYSQL = "mysql"
 
 
 @dataclass
@@ -68,6 +69,25 @@ class PostgreSQLConfig(DatabaseConfig):
             username=username,
             password=password,
             uri=uri,
+            additional_params=additional_params or {}
+        )
+
+
+@dataclass
+class MySQLConfig(DatabaseConfig):
+    """MySQL specific configuration."""
+
+    def __init__(self, host: str, database: str, port: int = 3306,
+                 username: Optional[str] = None, password: Optional[str] = None,
+                 additional_params: Optional[Dict[str, Any]] = None):
+        super().__init__(
+            db_type=DatabaseType.MYSQL,
+            host=host,
+            port=port,
+            database=database,
+            username=username,
+            password=password,
+            uri=None,
             additional_params=additional_params or {}
         )
 

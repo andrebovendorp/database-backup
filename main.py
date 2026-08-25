@@ -26,7 +26,7 @@ from typing import List, Optional
 sys.path.insert(0, str(Path(__file__).parent))
 
 from models.database_config import (
-    MongoDBConfig, PostgreSQLConfig, BackupConfig, 
+    MongoDBConfig, PostgreSQLConfig, MySQLConfig, BackupConfig,
     FTPConfig, TelegramConfig
 )
 from controllers.backup_manager import BackupManager
@@ -184,6 +184,44 @@ class DatabaseBackupApp:
         
         # Application settings
         self.verbose = os.getenv('VERBOSE', 'false').lower() == 'true'
+
+    def add_mongodb_database(self, host: str, port: int, database: str,
+                             username: str = None, password: str = None,
+                             uri: str = None) -> str:
+        """Add a MongoDB database controller."""
+        config = MongoDBConfig(
+            host=host,
+            port=port,
+            database=database,
+            username=username,
+            password=password,
+            uri=uri
+        )
+        return self.backup_manager.add_database(config)
+
+    def add_postgresql_database(self, host: str, port: int, database: str,
+                                username: str = None, password: str = None) -> str:
+        """Add a PostgreSQL database controller."""
+        config = PostgreSQLConfig(
+            host=host,
+            port=port,
+            database=database,
+            username=username,
+            password=password
+        )
+        return self.backup_manager.add_database(config)
+
+    def add_mysql_database(self, host: str, port: int, database: str,
+                           username: str = None, password: str = None) -> str:
+        """Add a MySQL database controller."""
+        config = MySQLConfig(
+            host=host,
+            port=port,
+            database=database,
+            username=username,
+            password=password
+        )
+        return self.backup_manager.add_database(config)
     
     
     def backup_database(self, controller_id: str) -> bool:

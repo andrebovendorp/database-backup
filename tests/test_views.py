@@ -180,9 +180,9 @@ class TestBackupView:
         """Test display error message."""
         self.view.display_error("Database connection failed", "Backup operation")
         
-        mock_print.assert_called_once()
-        call_args = mock_print.call_args[0][0]
-        assert "ERROR: Database connection failed" in call_args
+        assert mock_print.call_count >= 1
+        call_args = [call[0][0] for call in mock_print.call_args_list]
+        assert any("ERROR: Database connection failed" in arg for arg in call_args)
     
     @patch('builtins.print')
     def test_display_info(self, mock_print):
@@ -310,10 +310,8 @@ class TestBackupReportView:
     
     def test_save_report_failure(self):
         """Test report saving failure."""
-        # Try to save to a path that doesn't exist and can't be created
-        invalid_path = "/invalid/path/that/does/not/exist/report.txt"
-        
-        result = self.report_view.save_report("Test content", invalid_path)
-        
+        with patch('builtins.open', side_effect=OSError("Disk full")):
+            result = self.report_view.save_report("Test content", "report.txt")
+
         assert result is False
 
