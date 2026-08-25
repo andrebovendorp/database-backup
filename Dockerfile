@@ -1,5 +1,5 @@
 # Use Python 3.11 slim base image for smaller size
-FROM python:3.14.0rc3-alpine3.21
+FROM python:3.14.1-alpine3.21
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
