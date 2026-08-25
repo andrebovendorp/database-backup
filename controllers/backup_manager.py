@@ -8,13 +8,15 @@ from pathlib import Path
 
 from controllers.base_controller import BaseBackupController
 from controllers.mongodb_controller import MongoDBBackupController
+from controllers.mysql_controller import MySQLBackupController
 from controllers.postgresql_controller import PostgreSQLBackupController
-from models.database_config import DatabaseConfig, MongoDBConfig, PostgreSQLConfig, BackupConfig
+from models.database_config import DatabaseConfig, MongoDBConfig, PostgreSQLConfig, MySQLConfig, BackupConfig
 from models.backup_result import BackupResult, BackupSummary
 
 
 class BackupManager:
     """Manages backup operations for multiple databases."""
+    backup_history: List[BackupResult] = []
     
     def __init__(self, backup_config: BackupConfig):
         """Initialize backup manager."""
@@ -32,6 +34,8 @@ class BackupManager:
             controller = MongoDBBackupController(db_config, self.backup_config)
         elif db_config.db_type.value == "postgresql":
             controller = PostgreSQLBackupController(db_config, self.backup_config)
+        elif db_config.db_type.value == "mysql":
+            controller = MySQLBackupController(db_config, self.backup_config)
         else:
             raise ValueError(f"Unsupported database type: {db_config.db_type}")
         

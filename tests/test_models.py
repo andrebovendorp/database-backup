@@ -1,12 +1,12 @@
 """
 Unit tests for models.
 """
-import unittest
+import pytest
 from datetime import datetime
 from pathlib import Path
 
 from models.database_config import (
-    DatabaseType, DatabaseConfig, MongoDBConfig, PostgreSQLConfig,
+    DatabaseType, DatabaseConfig, MongoDBConfig, PostgreSQLConfig, MySQLConfig,
     BackupConfig, FTPConfig, TelegramConfig
 )
 from models.backup_result import (
@@ -72,16 +72,33 @@ class TestDatabaseConfig:
         assert config.database == "testdb"
         assert config.username == "user"
         assert config.password == "pass"
+
+    def test_mysql_config_creation(self):
+        """Test MySQL configuration creation."""
+        config = MySQLConfig(
+            host="localhost",
+            port=3306,
+            database="testdb",
+            username="user",
+            password="pass"
+        )
+
+        assert config.db_type == DatabaseType.MYSQL
+        assert config.host == "localhost"
+        assert config.port == 3306
+        assert config.database == "testdb"
+        assert config.username == "user"
+        assert config.password == "pass"
     
     def test_database_config_validation(self):
         """Test database configuration validation."""
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             MongoDBConfig(host="", port=27017, database="testdb")
         
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             MongoDBConfig(host="localhost", port=27017, database="")
         
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             MongoDBConfig(host="localhost", port=0, database="testdb")
     
     def test_backup_config_creation(self):
@@ -98,10 +115,10 @@ class TestDatabaseConfig:
     
     def test_backup_config_validation(self):
         """Test backup configuration validation."""
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             BackupConfig(backup_dir="/tmp", retention_days=0)
         
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             BackupConfig(backup_dir="", retention_days=7)
     
     def test_ftp_config_creation(self):
@@ -123,7 +140,7 @@ class TestDatabaseConfig:
     
     def test_ftp_config_validation(self):
         """Test FTP configuration validation."""
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             FTPConfig(host="", username="user", password="pass", remote_dir="/backup")
     
     def test_telegram_config_creation(self):

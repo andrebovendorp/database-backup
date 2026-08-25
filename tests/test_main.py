@@ -83,6 +83,21 @@ class TestDatabaseBackupApp:
         
         assert controller_id == "postgresql_testdb"
         assert controller_id in app.backup_manager.controllers
+
+    def test_add_mysql_database(self):
+        """Test adding MySQL database."""
+        app = DatabaseBackupApp()
+
+        controller_id = app.add_mysql_database(
+            host="localhost",
+            port=3306,
+            database="testdb",
+            username="user",
+            password="pass"
+        )
+
+        assert controller_id == "mysql_testdb"
+        assert controller_id in app.backup_manager.controllers
     
     @patch('main.BackupManager.backup_database')
     @patch('main.FTPService')
@@ -92,6 +107,11 @@ class TestDatabaseBackupApp:
         # Setup mocks
         mock_result = Mock()
         mock_result.is_successful = True
+        mock_result.backup_id = "test_123"
+        mock_result.database_name = "testdb"
+        mock_result.status.value = "success"
+        mock_result.backup_size_bytes = 1024
+        mock_result.duration_seconds = 1.2
         mock_result.backup_file_path = "/tmp/backup.tar.gz"
         mock_backup.return_value = mock_result
         
@@ -136,28 +156,22 @@ class TestDatabaseBackupApp:
         assert result is False
         app.telegram_service.notify_backup_completed.assert_called_once()
     
-    @patch('main.BackupManager.backup_all_databases')
     @patch('main.TelegramService')
-    def test_backup_all_databases(self, mock_telegram, mock_backup_all):
+    def test_backup_all_databases(self, mock_telegram):
         """Test backing up all databases."""
-        # Setup mocks
-        mock_results = [Mock(), Mock()]
-        mock_backup_all.return_value = mock_results
-        
         app = DatabaseBackupApp()
         app.telegram_service = Mock()
         
         # Add some databases
         app.add_mongodb_database("localhost", 27017, "testdb1")
         app.add_postgresql_database("localhost", 5432, "testdb2", "user", "pass")
+
+        # Mock app-level backup_database calls used by backup_all_databases implementation
+        with patch.object(app, 'backup_database', side_effect=[True, False]) as mock_backup_db:
+            results = app.backup_all_databases()
         
-        # Mock the backup manager
-        app.backup_manager.backup_all_databases = mock_backup_all
-        
-        results = app.backup_all_databases()
-        
-        assert results == mock_results
-        mock_backup_all.assert_called_once()
+        assert results == [True, False]
+        assert mock_backup_db.call_count == 2
         app.telegram_service.notify_backup_summary.assert_called_once()
     
     @patch('main.FTPService')

@@ -43,6 +43,21 @@ mongodb:
     database: production
     uri: mongodb://user:pass@mongo-cluster.com:27017/production
 
+# Multiple MySQL Databases
+mysql:
+  - id: mysql-01
+    host: localhost
+    port: 3306
+    database: app_db
+    username: app_user
+    password: app_pass
+  - id: mysql-02
+    host: mysql-server.example.com
+    port: 3306
+    database: analytics
+    username: analytics_user
+    password: analytics_pass
+
 # FTP Configuration (optional)
 ftp:
   host: storage.nullservers.com
@@ -79,3 +94,10 @@ backup:
 #   port: 27017
 #   database: database
 #   uri: mongodb://localhost:27017/database
+#
+# mysql:
+#   host: localhost
+#   port: 3306
+#   database: database
+#   username: myusername
+#   password: mysecretpassword

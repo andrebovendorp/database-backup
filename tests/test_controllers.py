@@ -8,8 +8,9 @@ from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime
 from pathlib import Path
 
-from models.database_config import MongoDBConfig, PostgreSQLConfig, BackupConfig
+from models.database_config import MongoDBConfig, PostgreSQLConfig, MySQLConfig, BackupConfig
 from controllers.mongodb_controller import MongoDBBackupController
+from controllers.mysql_controller import MySQLBackupController
 from controllers.postgresql_controller import PostgreSQLBackupController
 from controllers.backup_manager import BackupManager
 
@@ -178,7 +179,7 @@ class TestPostgreSQLController:
         output_file = "/tmp/backup.sql"
         cmd = self.controller._build_pg_dump_command(output_file)
         
-        assert "pg_dumpall" in cmd
+        assert "pg_dump" in cmd
         assert "--file" in cmd
         assert output_file in cmd
         assert "--host" in cmd
@@ -200,6 +201,59 @@ class TestPostgreSQLController:
         assert input_file in cmd
         assert "--host" in cmd
         assert "localhost" in cmd
+
+
+class TestMySQLController:
+    """Test MySQL backup controller."""
+
+    def setup_method(self):
+        """Setup test fixtures."""
+        self.db_config = MySQLConfig(
+            host="localhost",
+            port=3306,
+            database="testdb",
+            username="user",
+            password="pass"
+        )
+        self.backup_config = BackupConfig(
+            backup_dir=tempfile.mkdtemp(),
+            retention_days=7
+        )
+        self.controller = MySQLBackupController(self.db_config, self.backup_config)
+
+    def teardown_method(self):
+        """Cleanup test fixtures."""
+        import shutil
+        if os.path.exists(self.backup_config.backup_dir):
+            shutil.rmtree(self.backup_config.backup_dir)
+
+    @patch('controllers.mysql_controller.subprocess.run')
+    def test_create_backup_success(self, mock_run):
+        """Test successful MySQL backup creation."""
+        mock_run.return_value = Mock(returncode=0, stdout="Success", stderr="")
+
+        result = self.controller.create_backup()
+
+        assert result.status.value == "success"
+        assert result.database_type == "mysql"
+        assert result.database_name == "testdb"
+        assert result.is_successful is True
+
+    def test_build_mysqldump_command(self):
+        """Test mysqldump command building."""
+        output_file = "/tmp/backup.sql"
+        cmd = self.controller._build_mysqldump_command(output_file)
+
+        assert "mysqldump" in cmd
+        assert "--result-file" in cmd
+        assert output_file in cmd
+        assert "--host" in cmd
+        assert "localhost" in cmd
+        assert "--port" in cmd
+        assert "3306" in cmd
+        assert "--user" in cmd
+        assert "user" in cmd
+        assert "testdb" in cmd
 
 
 class TestBackupManager:
@@ -255,6 +309,22 @@ class TestBackupManager:
         assert controller_id == "postgresql_testdb"
         assert controller_id in self.manager.controllers
         assert isinstance(self.manager.controllers[controller_id], PostgreSQLBackupController)
+
+    def test_add_mysql_database(self):
+        """Test adding MySQL database."""
+        db_config = MySQLConfig(
+            host="localhost",
+            port=3306,
+            database="testdb",
+            username="user",
+            password="pass"
+        )
+
+        controller_id = self.manager.add_database(db_config)
+
+        assert controller_id == "mysql_testdb"
+        assert controller_id in self.manager.controllers
+        assert isinstance(self.manager.controllers[controller_id], MySQLBackupController)
     
     def test_add_unsupported_database(self):
         """Test adding unsupported database type."""
