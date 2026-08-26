@@ -11,7 +11,7 @@ from controllers.mongodb_controller import MongoDBBackupController
 from controllers.mysql_controller import MySQLBackupController
 from controllers.postgresql_controller import PostgreSQLBackupController
 from models.database_config import DatabaseConfig, MongoDBConfig, PostgreSQLConfig, MySQLConfig, BackupConfig
-from models.backup_result import BackupResult, BackupSummary
+from models.backup_result import BackupResult, BackupStatus, BackupSummary
 
 
 class BackupManager:
@@ -74,7 +74,7 @@ class BackupManager:
                     backup_id=f"failed_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
                     database_type=controller_id.split('_')[0],
                     database_name=controller_id.split('_', 1)[1],
-                    status=BackupResult.BackupStatus.FAILED,
+                    status=BackupStatus.FAILED,
                     start_time=datetime.now(),
                     end_time=datetime.now(),
                     error_message=str(e)

@@ -131,6 +131,30 @@ class FTPConfig:
 
 
 @dataclass
+class SMBConfig:
+    """SMB share configuration."""
+    host: str
+    share: str
+    username: str
+    password: str
+    remote_dir: str = ""
+    port: int = 445
+
+    def __post_init__(self):
+        """Validate SMB configuration."""
+        if not self.host:
+            raise ValueError("SMB host is required")
+        if not self.share:
+            raise ValueError("SMB share is required")
+        if not self.username:
+            raise ValueError("SMB username is required")
+        if not self.password:
+            raise ValueError("SMB password is required")
+        if self.port <= 0 or self.port > 65535:
+            raise ValueError("SMB port must be between 1 and 65535")
+
+
+@dataclass
 class TelegramConfig:
     """Telegram notification configuration."""
     bot_token: str

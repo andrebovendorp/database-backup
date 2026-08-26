@@ -7,13 +7,15 @@ import os
 from unittest.mock import Mock, patch, MagicMock
 from pathlib import Path
 
-from models.database_config import FTPConfig, TelegramConfig
-from services.ftp_service import FTPService
+from models.database_config import FTPConfig, SMBConfig, TelegramConfig
+from services.ftp_target import FTPBackupTarget
+from services.smb_service import SMBService
+from services.target_factory import create_backup_target
 from services.telegram_service import TelegramService
 
 
-class TestFTPService:
-    """Test FTP service."""
+class TestFTPBackupTarget:
+    """Test FTP backup target."""
     
     def setup_method(self):
         """Setup test fixtures."""
@@ -24,15 +26,15 @@ class TestFTPService:
             password="testpass",
             remote_dir="/backup"
         )
-        self.ftp_service = FTPService(self.ftp_config)
+        self.ftp_service = FTPBackupTarget(self.ftp_config)
     
-    def test_ftp_service_initialization(self):
+    def test_ftp_target_initialization(self):
         """Test FTP service initialization."""
         assert self.ftp_service.ftp_config == self.ftp_config
         assert self.ftp_service._connection is None
         assert self.ftp_service.logger is not None
     
-    @patch('services.ftp_service.FTP')
+    @patch('services.ftp_target.FTP')
     def test_connect_success(self, mock_ftp_class):
         """Test successful FTP connection."""
         mock_ftp = Mock()
@@ -46,7 +48,7 @@ class TestFTPService:
         mock_ftp.login.assert_called_once_with("testuser", "testpass")
         mock_ftp.cwd.assert_called_once_with("/backup")
     
-    @patch('services.ftp_service.FTP')
+    @patch('services.ftp_target.FTP')
     def test_connect_failure(self, mock_ftp_class):
         """Test FTP connection failure."""
         mock_ftp = Mock()
@@ -58,11 +60,11 @@ class TestFTPService:
         assert result is False
         assert self.ftp_service._connection is None
     
-    @patch('services.ftp_service.FTP_TLS')
+    @patch('services.ftp_target.FTP_TLS')
     def test_connect_ssl_success(self, mock_ftp_tls_class):
         """Test successful SSL FTP connection."""
         self.ftp_config.ssl_enabled = True
-        self.ftp_service = FTPService(self.ftp_config)
+        self.ftp_service = FTPBackupTarget(self.ftp_config)
         
         mock_ftp = Mock()
         mock_ftp_tls_class.return_value = mock_ftp
@@ -78,7 +80,7 @@ class TestFTPService:
         self.ftp_service.disconnect()
         # Should not raise any exceptions
     
-    @patch('services.ftp_service.FTP')
+    @patch('services.ftp_target.FTP')
     def test_disconnect_success(self, mock_ftp_class):
         """Test successful disconnect."""
         mock_ftp = Mock()
@@ -90,7 +92,7 @@ class TestFTPService:
         mock_ftp.quit.assert_called_once()
         assert self.ftp_service._connection is None
     
-    @patch('services.ftp_service.FTP')
+    @patch('services.ftp_target.FTP')
     def test_upload_file_success(self, mock_ftp_class):
         """Test successful file upload."""
         mock_ftp = Mock()
@@ -110,14 +112,14 @@ class TestFTPService:
         finally:
             os.unlink(temp_file_path)
     
-    @patch('services.ftp_service.FTP')
+    @patch('services.ftp_target.FTP')
     def test_upload_file_not_connected(self, mock_ftp_class):
         """Test file upload without connection."""
         result = self.ftp_service.upload_file("/tmp/test.txt")
         
         assert result is False
     
-    @patch('services.ftp_service.FTP')
+    @patch('services.ftp_target.FTP')
     def test_upload_file_nonexistent(self, mock_ftp_class):
         """Test file upload with nonexistent file."""
         mock_ftp = Mock()
@@ -128,7 +130,7 @@ class TestFTPService:
         
         assert result is False
     
-    @patch('services.ftp_service.FTP')
+    @patch('services.ftp_target.FTP')
     def test_download_file_success(self, mock_ftp_class):
         """Test successful file download."""
         mock_ftp = Mock()
@@ -142,7 +144,7 @@ class TestFTPService:
             assert result is True
             mock_ftp.retrbinary.assert_called_once()
     
-    @patch('services.ftp_service.FTP')
+    @patch('services.ftp_target.FTP')
     def test_list_files_success(self, mock_ftp_class):
         """Test successful file listing."""
         mock_ftp = Mock()
@@ -161,7 +163,7 @@ class TestFTPService:
         assert "backup1.tar.gz" in files
         assert "backup2.tar.gz" in files
     
-    @patch('services.ftp_service.FTP')
+    @patch('services.ftp_target.FTP')
     def test_delete_file_success(self, mock_ftp_class):
         """Test successful file deletion."""
         mock_ftp = Mock()
@@ -185,6 +187,90 @@ class TestFTPService:
             
             mock_connect.assert_called_once()
             mock_disconnect.assert_called_once()
+
+
+class TestSMBService:
+    """Test SMB target uploads."""
+
+    def setup_method(self):
+        self.smb_config = SMBConfig(
+            host="nas.example.com",
+            share="backups",
+            username="testuser",
+            password="testpass",
+            remote_dir="database-backup"
+        )
+        self.smb_service = SMBService(self.smb_config)
+
+    def test_smb_base_path(self):
+        assert self.smb_service.base_path == r"\\nas.example.com\backups\database-backup"
+
+    def test_smb_base_path_without_directory(self):
+        self.smb_config.remote_dir = ""
+        assert self.smb_service.base_path == r"\\nas.example.com\backups"
+
+    @patch('services.smb_service.smbclient')
+    def test_connect_and_upload_success(self, mock_smbclient):
+        mock_target = MagicMock()
+        mock_smbclient.open_file.return_value.__enter__.return_value = mock_target
+
+        assert self.smb_service.connect() is True
+        with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+            temp_file.write(b"test content")
+            temp_file_path = temp_file.name
+        try:
+            assert self.smb_service.upload_file(temp_file_path, "backup.tar.gz") is True
+            mock_smbclient.register_session.assert_called_once_with(
+                "nas.example.com", username="testuser", password="testpass", port=445
+            )
+            mock_smbclient.open_file.assert_called_once_with(
+                r"\\nas.example.com\backups\database-backup\backup.tar.gz", mode="wb"
+            )
+            mock_target.write.assert_called_once_with(b"test content")
+        finally:
+            os.unlink(temp_file_path)
+
+    @patch('services.smb_service.smbclient')
+    def test_upload_requires_connection(self, mock_smbclient):
+        assert self.smb_service.upload_file("/tmp/test.txt") is False
+
+    @patch('services.smb_service.smbclient')
+    def test_connect_failure(self, mock_smbclient):
+        mock_smbclient.register_session.side_effect = Exception("Connection failed")
+        assert self.smb_service.connect() is False
+
+    @patch('services.smb_service.smbclient')
+    def test_upload_nonexistent_file(self, mock_smbclient):
+        self.smb_service.connect()
+        assert self.smb_service.upload_file("/nonexistent/file.txt") is False
+
+    @patch('services.smb_service.smbclient')
+    def test_disconnect(self, mock_smbclient):
+        self.smb_service.connect()
+        self.smb_service.disconnect()
+        mock_smbclient.delete_session.assert_called_once_with("nas.example.com")
+
+
+class TestBackupTargetFactory:
+    """Test target type selection."""
+
+    def test_creates_ftp_target(self):
+        target = create_backup_target({
+            'type': 'ftp', 'host': 'ftp.example.com', 'username': 'user',
+            'password': 'pass', 'remote_dir': '/backup'
+        })
+        assert isinstance(target, FTPBackupTarget)
+
+    def test_creates_smb_target(self):
+        target = create_backup_target({
+            'type': 'smb', 'host': 'nas.example.com', 'share': 'backups',
+            'username': 'user', 'password': 'pass'
+        })
+        assert isinstance(target, SMBService)
+
+    def test_rejects_unknown_target(self):
+        with pytest.raises(ValueError, match="Unsupported backup target type"):
+            create_backup_target({'type': 's3'})
 
 
 class TestTelegramService:
@@ -338,13 +424,13 @@ class TestTelegramService:
         assert "Success Rate: 80.0%" in call_args[1]['data']['text']
     
     @patch('services.telegram_service.requests.post')
-    def test_notify_ftp_upload(self, mock_post):
-        """Test FTP upload notification."""
+    def test_notify_target_upload(self, mock_post):
+        """Test backup target upload notification."""
         mock_response = Mock()
         mock_response.raise_for_status.return_value = None
         mock_post.return_value = mock_response
         
-        result = self.telegram_service.notify_ftp_upload("backup.tar.gz", True)
+        result = self.telegram_service.notify_target_upload("backup.tar.gz", "FTP", True)
         
         assert result is True
         mock_post.assert_called_once()

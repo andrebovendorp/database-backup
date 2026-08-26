@@ -104,22 +104,22 @@ class TestBackupView:
         assert any("Success Rate: 80.0%" in arg for arg in call_args)
     
     @patch('builtins.print')
-    def test_display_ftp_upload_success(self, mock_print):
+    def test_display_target_upload_success(self, mock_print):
         """Test display successful FTP upload."""
-        self.view.display_ftp_upload("backup.tar.gz", True)
+        self.view.display_target_upload("backup.tar.gz", "FTP", True)
         
         mock_print.assert_called_once()
         call_args = mock_print.call_args[0][0]
         assert "FTP UPLOADED: backup.tar.gz" in call_args
     
     @patch('builtins.print')
-    def test_display_ftp_upload_failure(self, mock_print):
+    def test_display_target_upload_failure(self, mock_print):
         """Test display failed FTP upload."""
-        self.view.display_ftp_upload("backup.tar.gz", False)
+        self.view.display_target_upload("backup.tar.gz", "SMB", False)
         
         mock_print.assert_called_once()
         call_args = mock_print.call_args[0][0]
-        assert "FTP UPLOAD FAILED: backup.tar.gz" in call_args
+        assert "SMB UPLOAD FAILED: backup.tar.gz" in call_args
     
     @patch('builtins.print')
     def test_display_cleanup_results(self, mock_print):
