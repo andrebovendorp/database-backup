@@ -7,7 +7,7 @@ from pathlib import Path
 
 from models.database_config import (
     DatabaseType, DatabaseConfig, MongoDBConfig, PostgreSQLConfig, MySQLConfig,
-    BackupConfig, FTPConfig, TelegramConfig
+    BackupConfig, FTPConfig, SMBConfig, TelegramConfig
 )
 from models.backup_result import (
     BackupResult, BackupStatus, BackupSummary
@@ -142,6 +142,37 @@ class TestDatabaseConfig:
         """Test FTP configuration validation."""
         with pytest.raises(ValueError):
             FTPConfig(host="", username="user", password="pass", remote_dir="/backup")
+        for field in ("username", "password", "remote_dir"):
+            values = {
+                "host": "ftp.example.com", "username": "user",
+                "password": "pass", "remote_dir": "/backup"
+            }
+            values[field] = ""
+            with pytest.raises(ValueError):
+                FTPConfig(**values)
+
+    def test_smb_config_creation_and_validation(self):
+        config = SMBConfig(
+            host="nas.example.com", share="backups", username="user", password="pass"
+        )
+        assert config.port == 445
+        assert config.remote_dir == ""
+
+        with pytest.raises(ValueError):
+            SMBConfig(host="nas.example.com", share="", username="user", password="pass")
+
+        for field in ("host", "username", "password"):
+            values = {
+                "host": "nas.example.com", "share": "backups",
+                "username": "user", "password": "pass"
+            }
+            values[field] = ""
+            with pytest.raises(ValueError):
+                SMBConfig(**values)
+        with pytest.raises(ValueError):
+            SMBConfig(host="h", share="s", username="u", password="p", port=0)
+        with pytest.raises(ValueError):
+            SMBConfig(host="h", share="s", username="u", password="p", port=65536)
     
     def test_telegram_config_creation(self):
         """Test Telegram configuration creation."""

@@ -87,18 +87,29 @@ class ConfigLoader:
         except Exception as e:
             raise ValueError(f"Failed to load configuration from {self.config_file}: {e}")
     
-    def load_ftp_config(self) -> Optional[Dict[str, Any]]:
-        """Load FTP configuration from YAML file."""
+    def load_target_configs(self) -> List[Dict[str, Any]]:
+        """Load backup targets from YAML."""
         if not YAML_AVAILABLE:
-            return None
-        
+            return []
+
         try:
             with open(self.config_file, 'r') as f:
-                config = yaml.safe_load(f)
-            
-            return config.get('ftp')
+                config = yaml.safe_load(f) or {}
+
+            targets = config.get('targets')
+            if isinstance(targets, list):
+                return [target for target in targets
+                        if isinstance(target, dict) and target.get('enabled', True)]
+            if isinstance(targets, dict):
+                normalized = []
+                for target_type, target in targets.items():
+                    if isinstance(target, dict) and target.get('enabled', True):
+                        normalized.append({**target, 'type': target_type})
+                return normalized
+
+            return []
         except Exception:
-            return None
+            return []
     
     def load_telegram_config(self) -> Optional[Dict[str, Any]]:
         """Load Telegram configuration from YAML file."""

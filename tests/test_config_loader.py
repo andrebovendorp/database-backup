@@ -51,3 +51,70 @@ mysql:
             assert "mysql-main" in config_map
             assert isinstance(config_map["mysql-main"], MySQLConfig)
             assert config_map["mysql-main"].database == "mysqldb"
+
+    def test_load_target_configs_supports_smb_and_legacy_ftp(self):
+        config_yaml = """
+targets:
+  - type: ftp
+    host: ftp.example.com
+    username: ftp-user
+    password: ftp-pass
+    remote_dir: /backup
+  - type: smb
+    host: nas.example.com
+    share: backups
+    username: smb-user
+    password: smb-pass
+    remote_dir: database-backup
+"""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_path = Path(temp_dir) / "config.yaml"
+            config_path.write_text(config_yaml, encoding="utf-8")
+
+            targets = ConfigLoader(str(config_path)).load_target_configs()
+
+            assert [target['type'] for target in targets] == ['ftp', 'smb']
+
+    def test_load_target_configs_supports_mapping_format(self):
+        config_yaml = """
+targets:
+  ftp:
+    enabled: true
+    host: ftp.example.com
+    username: ftp-user
+    password: ftp-pass
+    remote_dir: /backup
+  s3:
+    enabled: false
+    bucket: ignored
+"""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_path = Path(temp_dir) / "config.yaml"
+            config_path.write_text(config_yaml, encoding="utf-8")
+
+            targets = ConfigLoader(str(config_path)).load_target_configs()
+
+            assert targets == [{
+                'type': 'ftp',
+                'enabled': True,
+                'host': 'ftp.example.com',
+                'username': 'ftp-user',
+                'password': 'ftp-pass',
+                'remote_dir': '/backup'
+            }]
+
+    def test_load_target_configs_ignores_disabled_list_targets(self):
+        config_yaml = """
+targets:
+  - type: ftp
+    enabled: false
+    host: ftp.example.com
+    username: user
+    password: pass
+    remote_dir: /backup
+"""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_path = Path(temp_dir) / "config.yaml"
+            config_path.write_text(config_yaml, encoding="utf-8")
+
+            assert ConfigLoader(str(config_path)).load_target_configs() == []

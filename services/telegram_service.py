@@ -122,16 +122,16 @@ class TelegramService:
         
         return self.send_message(message)
     
-    def notify_ftp_upload(self, filename: str, success: bool) -> bool:
-        """Notify FTP upload status."""
+    def notify_target_upload(self, filename: str, target_type: str, success: bool) -> bool:
+        """Notify backup target upload status."""
         if success:
             emoji = "📤"
             status = "Uploaded"
-            message = f"{emoji} <b>FTP Upload - {status}</b>\nFile: {filename}"
+            message = f"{emoji} <b>{target_type} Upload - {status}</b>\nFile: {filename}"
         else:
             emoji = "❌"
             status = "Failed"
-            message = f"{emoji} <b>FTP Upload - {status}</b>\nFile: {filename}"
+            message = f"{emoji} <b>{target_type} Upload - {status}</b>\nFile: {filename}"
         
         return self.send_message(message)
     

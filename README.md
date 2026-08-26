@@ -163,19 +163,35 @@ COMPRESSION=true
 LOG_LEVEL=INFO
 VERBOSE=false
 
-# FTP Configuration (optional)
-FTP_HOST=storage.nullservers.com
-FTP_PORT=21
-FTP_USERNAME=kube
-FTP_PASSWORD=your_ftp_password
-FTP_REMOTE_DIR=/backup/mongodb-cron
-FTP_SSL=false
-
 # Telegram Configuration (optional)
 TELEGRAM_BOT_TOKEN=your_bot_token
 TELEGRAM_CHAT_ID=your_chat_id
 TELEGRAM_ENABLED=true
 ```
+
+### Multiple Backup Targets
+
+Use the `targets` list when backups should be sent to one or more destinations. FTP and SMB are configured as target entries. SMB targets require the `smbprotocol` dependency and write to a UNC share.
+
+```yaml
+targets:
+  - type: ftp
+    host: storage.example.com
+    port: 21
+    username: backup-user
+    password: your_ftp_password
+    remote_dir: /database-backup
+    ssl: false
+  - type: smb
+    host: nas.example.com
+    share: backups
+    username: backup-user
+    password: your_smb_password
+    remote_dir: database-backup
+    port: 445
+```
+
+Targets are selected by their `type`, so additional destinations such as S3 can be added as separate services without changing database backup controllers.
 
 ## 🎯 Quick Start
 
@@ -401,6 +417,20 @@ python run_tests.py models
 python run_tests.py controllers
 python run_tests.py services
 ```
+
+### Makefile Commands
+```bash
+# Build the standalone local executable with Nuitka
+make build-local
+
+# Build the Docker image as database-backup:latest
+make build-docker
+
+# Run the test suite and require at least 90% coverage
+make test
+```
+
+The Makefile accepts `PYTHON`, `DOCKER`, `IMAGE_NAME`, and `IMAGE_TAG` overrides, for example `make test PYTHON=python3` or `make build-docker IMAGE_TAG=dev`.
 
 ### Test Configuration
 ```bash

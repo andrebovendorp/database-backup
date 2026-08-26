@@ -77,18 +77,18 @@ class BackupView:
         
         print("="*60)
     
-    def display_ftp_upload(self, filename: str, success: bool):
-        """Display FTP upload status."""
+    def display_target_upload(self, filename: str, target_type: str, success: bool):
+        """Display backup target upload status."""
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         
         if success:
             status_icon = "📤"
             status_text = "UPLOADED"
-            print(f"[{timestamp}] {status_icon} FTP {status_text}: {filename}")
+            print(f"[{timestamp}] {status_icon} {target_type} {status_text}: {filename}")
         else:
             status_icon = "❌"
             status_text = "UPLOAD FAILED"
-            print(f"[{timestamp}] {status_icon} FTP {status_text}: {filename}")
+            print(f"[{timestamp}] {status_icon} {target_type} {status_text}: {filename}")
     
     def display_cleanup_results(self, cleanup_results: Dict[str, List[str]]):
         """Display cleanup results."""

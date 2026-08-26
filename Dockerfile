@@ -18,10 +18,11 @@ RUN apk update; apk add --no-cache postgresql-client mongodb-tools mariadb-clien
 # MYSQL_PWD is consumed at runtime by the app when MySQL credentials are configured.
 # Do not set secrets in the image; pass them through config/env at deploy time.
 
-# Copy requirements first for better Docker layer caching
-COPY . .
+# smbprotocol is pure Python and is installed with the application dependencies.
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-RUN pip install --no-cache-dir -r requirements.txt 
+COPY . .
 
 # Default command - run the backup system
 CMD ["python", "main.py", "--help"]

@@ -27,15 +27,11 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from models.database_config import (
     MongoDBConfig, PostgreSQLConfig, MySQLConfig, BackupConfig,
-    FTPConfig, TelegramConfig
+    TelegramConfig
 )
 from controllers.backup_manager import BackupManager
 from config_loader import ConfigLoader
-# Import services with fallback for missing dependencies
-try:
-    from services.ftp_service import FTPService
-except ImportError:
-    FTPService = None
+from services.target_factory import create_backup_target
 
 try:
     from services.telegram_service import TelegramService
@@ -58,7 +54,7 @@ class DatabaseBackupApp:
         
         # Initialize components
         self.backup_manager = BackupManager(self.backup_config)
-        self.ftp_service = FTPService(self.ftp_config) if (self.ftp_config and FTPService) else None
+        self.backup_targets = []
         self.telegram_service = TelegramService(self.telegram_config) if (self.telegram_config and TelegramService) else None
         self.view = BackupView(verbose=self.verbose)
         self.report_view = BackupReportView()
@@ -85,25 +81,19 @@ class DatabaseBackupApp:
             raise
     
     def load_services_from_config(self):
-        """Load FTP and Telegram services from configuration file."""
+        """Load backup targets and Telegram service from configuration file."""
         try:
             config_loader = ConfigLoader(self.config_file)
             
-            # Load FTP configuration
-            ftp_config_data = config_loader.load_ftp_config()
-            if ftp_config_data:
-                from models.database_config import FTPConfig
-                ftp_config = FTPConfig(
-                    host=ftp_config_data.get('host', ''),
-                    port=ftp_config_data.get('port', 21),
-                    username=ftp_config_data.get('username', ''),
-                    password=ftp_config_data.get('password', ''),
-                    remote_dir=ftp_config_data.get('remote_dir', '/'),
-                    ssl_enabled=ftp_config_data.get('ssl', False)
-                )
-                self.ftp_config = ftp_config
-                self.ftp_service = FTPService(ftp_config) if FTPService else None
-                self.logger.info("Loaded FTP configuration from YAML")
+            # Load all configured targets from YAML.
+            target_configs = config_loader.load_target_configs()
+            if not target_configs:
+                self.logger.warning("No backup targets configured in %s", self.config_file)
+                raise ValueError("At least one backup target must be configured in the YAML file")
+
+            self.backup_targets = [create_backup_target(config) for config in target_configs]
+            for target_config in target_configs:
+                self.logger.info("Loaded %s backup target from YAML", target_config.get('type', 'unknown'))
             
             # Load Telegram configuration
             telegram_config_data = config_loader.load_telegram_config()
@@ -132,7 +122,7 @@ class DatabaseBackupApp:
                 
         except Exception as e:
             self.logger.error(f"Failed to load services from configuration: {e}")
-            # Don't raise - services are optional
+            raise
     
     def setup_logging(self):
         """Setup logging configuration."""
@@ -156,20 +146,6 @@ class DatabaseBackupApp:
             retention_days=int(os.getenv('RETENTION_DAYS', '7')),
             compression=os.getenv('COMPRESSION', 'true').lower() == 'true'
         )
-        
-        # FTP configuration
-        ftp_host = os.getenv('FTP_HOST')
-        if ftp_host:
-            self.ftp_config = FTPConfig(
-                host=ftp_host,
-                port=int(os.getenv('FTP_PORT', '21')),
-                username=os.getenv('FTP_USERNAME', ''),
-                password=os.getenv('FTP_PASSWORD', ''),
-                remote_dir=os.getenv('FTP_REMOTE_DIR', '/backup'),
-                ssl_enabled=os.getenv('FTP_SSL', 'false').lower() == 'true'
-            )
-        else:
-            self.ftp_config = None
         
         # Telegram configuration
         telegram_token = os.getenv('TELEGRAM_BOT_TOKEN')
@@ -245,9 +221,9 @@ class DatabaseBackupApp:
             # Display result
             self.view.display_backup_result(result)
             
-            # Upload to FTP if configured
-            if result.is_successful and result.backup_file_path and self.ftp_service:
-                self.upload_to_ftp(result.backup_file_path)
+            # Upload to every configured backup target.
+            if result.is_successful and result.backup_file_path and self.backup_targets:
+                self.upload_to_targets(result.backup_file_path)
             
             # Notify Telegram
             if self.telegram_service:
@@ -279,25 +255,27 @@ class DatabaseBackupApp:
         
         return results
     
-    def upload_to_ftp(self, file_path: str) -> bool:
-        """Upload file to FTP server."""
-        if not self.ftp_service:
-            self.view.display_warning("FTP not configured")
+    def upload_to_targets(self, file_path: str) -> bool:
+        """Upload a backup to every configured target."""
+        targets = list(dict.fromkeys(self.backup_targets))
+        if not targets:
+            self.view.display_warning("No backup targets configured")
             return False
-        
-        try:
-            with self.ftp_service:
-                success = self.ftp_service.upload_file(file_path)
-                self.view.display_ftp_upload(Path(file_path).name, success)
-                
+
+        results = []
+        for target in targets:
+            try:
+                with target:
+                    success = target.upload_file(file_path)
+                results.append(success)
+                target_name = target.__class__.__name__.replace('Service', '')
+                self.view.display_target_upload(Path(file_path).name, target_name, success)
                 if self.telegram_service:
-                    self.telegram_service.notify_ftp_upload(Path(file_path).name, success)
-                
-                return success
-                
-        except Exception as e:
-            self.view.display_error(str(e), "FTP upload")
-            return False
+                    self.telegram_service.notify_target_upload(Path(file_path).name, target_name, success)
+            except Exception as e:
+                self.view.display_error(str(e), "Backup target upload")
+                results.append(False)
+        return all(results)
     
     def cleanup_old_backups(self):
         """Clean up old backup files."""
@@ -424,15 +402,17 @@ class DatabaseBackupApp:
         else:
             self.view.display_warning("No databases configured")
         
-        # Test FTP
-        if self.ftp_service:
-            try:
-                with self.ftp_service:
-                    self.view.display_info("FTP connection: OK")
-            except Exception as e:
-                self.view.display_error(f"FTP connection failed: {e}")
+        # Test every configured backup target.
+        if self.backup_targets:
+            for target in self.backup_targets:
+                target_name = target.__class__.__name__.replace('Service', '')
+                try:
+                    with target:
+                        self.view.display_info(f"{target_name} connection: OK")
+                except Exception as e:
+                    self.view.display_error(f"{target_name} connection failed: {e}")
         else:
-            self.view.display_warning("FTP not configured")
+            self.view.display_warning("No backup targets configured")
         
         # Test Telegram
         if self.telegram_service:

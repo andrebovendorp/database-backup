@@ -58,14 +58,22 @@ mysql:
     username: analytics_user
     password: analytics_pass
 
-# FTP Configuration (optional)
-ftp:
-  host: storage.nullservers.com
-  port: 21
-  username: kube
-  password: your_ftp_password
-  remote_dir: /backup/mongodb-cron
-  ssl: false
+# Backup targets (optional)
+targets:
+  - type: ftp
+    host: storage.nullservers.com
+    port: 21
+    username: kube
+    password: your_ftp_password
+    remote_dir: /backup/mongodb-cron
+    ssl: false
+#   - type: smb
+#     host: nas.example.com
+#     share: backups
+#     username: backup-user
+#     password: your_smb_password
+#     remote_dir: database-backup
+#     port: 445
 
 # Telegram Configuration (optional)
 telegram:

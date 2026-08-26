@@ -4,6 +4,7 @@
 # Core dependencies (required)
 requests>=2.31.0          # HTTP requests for Telegram notifications
 PyYAML>=6.0              # YAML configuration file parsing
+smbprotocol>=1.13.0      # SMB file share uploads
 
 # Built-in modules used for Windows compatibility:
 # - tempfile (TemporaryDirectory for Windows-safe temp handling)
