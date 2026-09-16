@@ -41,8 +41,7 @@ class ConfigLoader:
             raise ValueError("YAML module not available. Install with: pip install pyyaml")
         
         try:
-            with open(self.config_file, 'r') as f:
-                config = yaml.safe_load(f)
+            config = self._load_yaml_config()
             
             databases = []
             
@@ -86,6 +85,25 @@ class ConfigLoader:
             
         except Exception as e:
             raise ValueError(f"Failed to load configuration from {self.config_file}: {e}")
+
+    def _load_yaml_config(self) -> Dict[str, Any]:
+        """Load YAML and unwrap ConfigMap-style embedded config files."""
+        with open(self.config_file, 'r') as f:
+            config = yaml.safe_load(f) or {}
+
+        if (
+            isinstance(config, dict)
+            and len(config) == 1
+            and isinstance(next(iter(config.values())), str)
+        ):
+            wrapped_key, wrapped_value = next(iter(config.items()))
+            if str(wrapped_key).endswith(('.yaml', '.yml')):
+                config = yaml.safe_load(wrapped_value) or {}
+
+        if not isinstance(config, dict):
+            raise ValueError("Configuration root must be a YAML mapping")
+
+        return config
     
     def load_ftp_config(self) -> Optional[Dict[str, Any]]:
         """Load FTP configuration from YAML file."""
@@ -93,8 +111,7 @@ class ConfigLoader:
             return None
         
         try:
-            with open(self.config_file, 'r') as f:
-                config = yaml.safe_load(f)
+            config = self._load_yaml_config()
             
             return config.get('ftp')
         except Exception:
@@ -106,8 +123,7 @@ class ConfigLoader:
             return None
         
         try:
-            with open(self.config_file, 'r') as f:
-                config = yaml.safe_load(f)
+            config = self._load_yaml_config()
             
             return config.get('telegram')
         except Exception:
@@ -119,8 +135,7 @@ class ConfigLoader:
             return None
         
         try:
-            with open(self.config_file, 'r') as f:
-                config = yaml.safe_load(f)
+            config = self._load_yaml_config()
             
             return config.get('backup')
         except Exception:

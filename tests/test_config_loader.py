@@ -51,3 +51,41 @@ mysql:
             assert "mysql-main" in config_map
             assert isinstance(config_map["mysql-main"], MySQLConfig)
             assert config_map["mysql-main"].database == "mysqldb"
+
+    def test_loads_configmap_wrapped_yaml(self):
+        """Load config when YAML content is nested under a file-name key."""
+        config_yaml = """
+config.yaml: |
+  pgsql:
+    - id: pg-main
+      host: localhost
+      port: 5432
+      database: pgdb
+      username: pguser
+      password: pgpass
+
+  ftp:
+    host: ftp.example.com
+    port: 21
+    username: ftpuser
+    password: ftppass
+    remote_dir: /backup
+    ssl: false
+
+  backup:
+    directory: ./backups
+    retention_days: 14
+    compression: true
+"""
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_path = Path(temp_dir) / "config.yaml"
+            config_path.write_text(config_yaml, encoding="utf-8")
+
+            loader = ConfigLoader(str(config_path))
+            configs = loader.create_database_configs()
+
+            assert len(configs) == 1
+            assert configs[0][1] == "pg-main"
+            assert loader.load_ftp_config()["host"] == "ftp.example.com"
+            assert loader.load_backup_config()["retention_days"] == 14

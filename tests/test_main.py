@@ -222,10 +222,28 @@ class TestDatabaseBackupApp:
         
         app = DatabaseBackupApp()
         app.backup_manager.cleanup_all_backups = mock_cleanup
+        app.ftp_service = None
         
         app.cleanup_old_backups()
         
         mock_cleanup.assert_called_once()
+
+    @patch('main.BackupManager.cleanup_all_backups')
+    def test_cleanup_old_backups_includes_ftp(self, mock_cleanup):
+        """Test cleanup of old FTP backups when FTP service is configured."""
+        mock_cleanup.return_value = {"mongodb_testdb": []}
+
+        app = DatabaseBackupApp()
+        app.backup_config.retention_days = 10
+        app.backup_manager.cleanup_all_backups = mock_cleanup
+        app.ftp_service = Mock()
+        app.ftp_service.__enter__ = Mock(return_value=app.ftp_service)
+        app.ftp_service.__exit__ = Mock(return_value=None)
+        app.ftp_service.cleanup_old_files.return_value = ["old.tar.gz"]
+
+        app.cleanup_old_backups()
+
+        app.ftp_service.cleanup_old_files.assert_called_once_with(10)
     
     @patch('main.BackupManager.list_backup_files')
     def test_list_backup_files(self, mock_list_files):

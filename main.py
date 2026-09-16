@@ -303,6 +303,13 @@ class DatabaseBackupApp:
         """Clean up old backup files."""
         try:
             cleanup_results = self.backup_manager.cleanup_all_backups()
+
+            if self.ftp_service:
+                with self.ftp_service:
+                    cleanup_results['ftp'] = self.ftp_service.cleanup_old_files(
+                        self.backup_config.retention_days
+                    )
+
             self.view.display_cleanup_results(cleanup_results)
             
             # Calculate total deleted files and size
