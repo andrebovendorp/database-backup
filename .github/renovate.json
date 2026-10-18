@@ -23,6 +23,10 @@
   ],
   "packageRules": [
     {
+      "matchManagers": ["pip_requirements", "dockerfile", "github-actions"],
+      "minimumReleaseAge": "14 days"
+    },
+    {
       "matchManagers": ["github-actions"],
       "matchDepTypes": ["container", "service"],
       "pinDigests": true
