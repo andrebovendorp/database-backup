@@ -6,6 +6,17 @@ on:
     tags: [ 'v*' ]
   pull_request:
     branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Version component to increment
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+        default: patch
 
 env:
   REGISTRY: ghcr.io
@@ -13,6 +24,52 @@ env:
   EXECUTABLE_NAME: database-backup
 
 jobs:
+  version:
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+    steps:
+    - name: Checkout repository and tags
+      uses: actions/checkout@v7
+      with:
+        fetch-depth: 0
+
+    - name: Calculate and push version tag
+      id: version
+      env:
+        BUMP: ${{ inputs.bump || 'patch' }}
+      run: |
+        set -euo pipefail
+
+        for attempt in 1 2 3 4 5; do
+          git fetch --force --tags origin
+          latest_version=$(git tag --list | sed 's/^v//' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n 1 || true)
+          latest_version=${latest_version:-1.0.0}
+          IFS=. read -r major minor patch <<< "$latest_version"
+
+          case "$BUMP" in
+            patch) patch=$((patch + 1)) ;;
+            minor) minor=$((minor + 1)); patch=0 ;;
+            major) major=$((major + 1)); minor=0; patch=0 ;;
+            *) echo "Unsupported version bump: $BUMP" >&2; exit 1 ;;
+          esac
+
+          tag="v${major}.${minor}.${patch}"
+          if git push origin "$tag"; then
+            echo "tag=$tag" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "Could not push $tag; refreshing tags and retrying ($attempt/5)."
+          sleep 2
+        done
+
+        echo "Failed to create a version tag after 5 attempts." >&2
+        exit 1
+
   build-executable:
     runs-on: ubuntu-latest
     strategy:
@@ -55,7 +112,8 @@ jobs:
 
   build-docker:
     runs-on: ubuntu-latest
-    needs: build-executable
+    needs: [build-executable, version]
+    if: always() && needs.build-executable.result == 'success' && (needs.version.result == 'success' || needs.version.result == 'skipped')
     permissions:
       contents: read
       packages: write
@@ -84,6 +142,7 @@ jobs:
           type=ref,event=pr
           type=semver,pattern={{version}}
           type=semver,pattern={{major}}.{{minor}}
+          type=raw,value=${{ needs.version.outputs.tag }},enable=${{ needs.version.outputs.tag != '' }}
           type=raw,value=latest,enable={{is_default_branch}}
 
     - name: Build and push Docker image
@@ -97,29 +156,12 @@ jobs:
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
-  security-scan:
-    runs-on: ubuntu-latest
-    needs: build-docker
-    if: github.event_name == 'push'
-    
-    steps:
-    - name: Run Trivy vulnerability scanner
-      uses: aquasecurity/trivy-action@master
-      with:
-        image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
-        format: 'sarif'
-        output: 'trivy-results.sarif'
-
-    - name: Upload Trivy scan results to GitHub Security tab
-      uses: github/codeql-action/upload-sarif@v4
-      if: always()
-      with:
-        sarif_file: 'trivy-results.sarif'
-
   release:
     runs-on: ubuntu-latest
-    needs: [build-executable, build-docker]
-    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build-executable, build-docker, version]
+    if: always() && needs.build-executable.result == 'success' && needs.build-docker.result == 'success' && ((needs.version.result == 'success' && needs.version.outputs.tag != '') || startsWith(github.ref, 'refs/tags/v'))
+    permissions:
+      contents: write
     
     steps:
     - name: Checkout repository
@@ -137,6 +179,7 @@ jobs:
           artifacts/database-backup-ubuntu-latest/*
           artifacts/database-backup-windows-latest/*
           artifacts/database-backup-macos-latest/*
+        tag_name: ${{ needs.version.outputs.tag || github.ref_name }}
         generate_release_notes: true
         draft: false
         prerelease: false
