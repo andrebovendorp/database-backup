@@ -29,6 +29,7 @@
     {
       "matchManagers": ["github-actions"],
       "matchDepTypes": ["container", "service"],
+      "minimumReleaseAge": "7 days",
       "pinDigests": true
     }
   ]
