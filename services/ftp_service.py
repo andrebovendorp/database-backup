@@ -25,7 +25,7 @@ class FTPService:
             if self.ftp_config.ssl_enabled:
                 self._connection = FTP_TLS()
             else:
-                self._connection = FTP()
+                self._connection = FTP()  # nosemgrep: python.lang.security.audit.insecure-transport.ftplib.use-ftp-tls.use-ftp-tls -- Plain FTP is supported for explicitly configured legacy servers.
             
             self._connection.connect(self.ftp_config.host, self.ftp_config.port)
             self._connection.login(self.ftp_config.username, self.ftp_config.password)
