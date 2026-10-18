@@ -6,7 +6,7 @@ import tempfile
 import subprocess
 from datetime import datetime
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 from .base_controller import BaseBackupController
 from models.database_config import MySQLConfig
@@ -21,8 +21,11 @@ class MySQLBackupController(BaseBackupController):
         super().__init__(db_config, backup_config)
         self.db_config: MySQLConfig = db_config
 
-    def _execute_command_with_password(self, command: List[str], timeout: int = 300) -> tuple:
+    def _execute_command_with_password(self, command: List[str], timeout: Optional[int] = None) -> tuple:
         """Execute MySQL command with MYSQL_PWD when password is configured."""
+        if timeout is None:
+            timeout = self.db_config.timeout_seconds
+
         try:
             env = os.environ.copy()
             if self.db_config.password:

@@ -24,6 +24,7 @@ class DatabaseConfig:
     password: Optional[str] = None
     uri: Optional[str] = None
     additional_params: Optional[Dict[str, Any]] = None
+    timeout_seconds: int = 300
 
     def __post_init__(self):
         """Validate configuration after initialization."""
@@ -33,6 +34,8 @@ class DatabaseConfig:
             raise ValueError("Database name is required")
         if self.port <= 0 or self.port > 65535:
             raise ValueError("Port must be between 1 and 65535")
+        if self.timeout_seconds < 1:
+            raise ValueError("Timeout must be at least 1 second")
 
 
 @dataclass
@@ -41,7 +44,8 @@ class MongoDBConfig(DatabaseConfig):
     
     def __init__(self, host: str, database: str, port: int = 27017, 
                  username: Optional[str] = None, password: Optional[str] = None, uri: Optional[str] = None,
-                 additional_params: Optional[Dict[str, Any]] = None):
+                 additional_params: Optional[Dict[str, Any]] = None,
+                 timeout_seconds: int = 300):
         super().__init__(
             db_type=DatabaseType.MONGODB,
             host=host,
@@ -50,7 +54,8 @@ class MongoDBConfig(DatabaseConfig):
             username=username,
             password=password,
             uri=uri,
-            additional_params=additional_params or {}
+            additional_params=additional_params or {},
+            timeout_seconds=timeout_seconds
         )
 
 
@@ -60,7 +65,8 @@ class PostgreSQLConfig(DatabaseConfig):
     
     def __init__(self, host: str, database: str, port: int = 5432,
                  username: Optional[str] = None, password: Optional[str] = None, uri: Optional[str] = None,
-                 additional_params: Optional[Dict[str, Any]] = None):
+                 additional_params: Optional[Dict[str, Any]] = None,
+                 timeout_seconds: int = 300):
         super().__init__(
             db_type=DatabaseType.POSTGRESQL,
             host=host,
@@ -69,7 +75,8 @@ class PostgreSQLConfig(DatabaseConfig):
             username=username,
             password=password,
             uri=uri,
-            additional_params=additional_params or {}
+            additional_params=additional_params or {},
+            timeout_seconds=timeout_seconds
         )
 
 
@@ -79,7 +86,8 @@ class MySQLConfig(DatabaseConfig):
 
     def __init__(self, host: str, database: str, port: int = 3306,
                  username: Optional[str] = None, password: Optional[str] = None,
-                 additional_params: Optional[Dict[str, Any]] = None):
+                 additional_params: Optional[Dict[str, Any]] = None,
+                 timeout_seconds: int = 300):
         super().__init__(
             db_type=DatabaseType.MYSQL,
             host=host,
@@ -88,7 +96,8 @@ class MySQLConfig(DatabaseConfig):
             username=username,
             password=password,
             uri=None,
-            additional_params=additional_params or {}
+            additional_params=additional_params or {},
+            timeout_seconds=timeout_seconds
         )
 
 

@@ -120,6 +120,13 @@ class TestDatabaseConfig:
         
         with pytest.raises(ValueError):
             BackupConfig(backup_dir="", retention_days=7)
+
+    def test_database_timeout_defaults_and_validation(self):
+        config = PostgreSQLConfig(host="localhost", database="testdb")
+        assert config.timeout_seconds == 300
+
+        with pytest.raises(ValueError):
+            PostgreSQLConfig(host="localhost", database="testdb", timeout_seconds=0)
     
     def test_ftp_config_creation(self):
         """Test FTP configuration creation."""

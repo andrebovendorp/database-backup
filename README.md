@@ -151,6 +151,8 @@ backup:
   verbose: false
 ```
 
+Set `timeout_seconds` on an individual `pgsql`, `mongodb`, or `mysql` entry to override that database's command timeout. If omitted, that entry uses the 300-second default.
+
 ### Environment Variables
 
 Copy `env.example` to `.env` and configure:

@@ -68,8 +68,10 @@ class PostgreSQLBackupController(BaseBackupController):
             except Exception as e:
                 self.logger.warning(f"Failed to remove .pgpass file {self._pgpass_file}: {e}")
     
-    def _execute_command_with_pgpass(self, command: List[str], pgpass_path: Optional[str], timeout: int = 300) -> tuple:
+    def _execute_command_with_pgpass(self, command: List[str], pgpass_path: Optional[str], timeout: Optional[int] = None) -> tuple:
         """Execute PostgreSQL command with .pgpass file environment."""
+        if timeout is None:
+            timeout = self.db_config.timeout_seconds
 
         try:
             # Prepare environment with PGPASSFILE and other PG environment variables

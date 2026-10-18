@@ -43,6 +43,15 @@ class TestMongoDBController:
         assert self.controller.db_config == self.db_config
         assert self.controller.backup_config == self.backup_config
         assert self.controller.logger is not None
+
+    @patch('controllers.base_controller.subprocess.run')
+    def test_command_uses_configured_timeout(self, mock_run):
+        self.db_config.timeout_seconds = 900
+        mock_run.return_value = Mock(returncode=0, stdout="", stderr="")
+
+        self.controller._execute_command(["mongodump"])
+
+        assert mock_run.call_args.kwargs["timeout"] == 900
     
     @patch('controllers.mongodb_controller.subprocess.run')
     def test_create_backup_success(self, mock_run):
@@ -148,6 +157,15 @@ class TestPostgreSQLController:
         assert self.controller.db_config == self.db_config
         assert self.controller.backup_config == self.backup_config
         assert self.controller.logger is not None
+
+    @patch('controllers.postgresql_controller.subprocess.run')
+    def test_command_uses_configured_timeout(self, mock_run):
+        self.db_config.timeout_seconds = 900
+        mock_run.return_value = Mock(returncode=0, stdout="", stderr="")
+
+        self.controller._execute_command_with_pgpass(["pg_dump"], None)
+
+        assert mock_run.call_args.kwargs["timeout"] == 900
     
     @patch('controllers.postgresql_controller.subprocess.run')
     def test_create_backup_success(self, mock_run):
@@ -226,6 +244,15 @@ class TestMySQLController:
         import shutil
         if os.path.exists(self.backup_config.backup_dir):
             shutil.rmtree(self.backup_config.backup_dir)
+
+    @patch('controllers.mysql_controller.subprocess.run')
+    def test_command_uses_configured_timeout(self, mock_run):
+        self.db_config.timeout_seconds = 900
+        mock_run.return_value = Mock(returncode=0, stdout="", stderr="")
+
+        self.controller._execute_command_with_password(["mysqldump"])
+
+        assert mock_run.call_args.kwargs["timeout"] == 900
 
     @patch('controllers.mysql_controller.subprocess.run')
     def test_create_backup_success(self, mock_run):

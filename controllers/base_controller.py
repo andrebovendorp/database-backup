@@ -62,8 +62,11 @@ class BaseBackupController(ABC):
         """Get full path for backup file."""
         return str(Path(self.backup_config.backup_dir) / filename)
     
-    def _execute_command(self, command: List[str], timeout: int = 300) -> tuple:
+    def _execute_command(self, command: List[str], timeout: Optional[int] = None) -> tuple:
         """Execute shell command and return (success, output, error)."""
+        if timeout is None:
+            timeout = self.db_config.timeout_seconds
+
         try:
             self.logger.debug(f"Executing command: {' '.join(command)}")
             result = subprocess.run(

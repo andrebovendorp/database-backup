@@ -38,6 +38,21 @@ class TestDatabaseBackupApp:
         assert app.view is not None
         assert app.report_view is not None
         assert app.logger is not None
+
+    def test_database_entry_timeout_reaches_controller(self, tmp_path):
+        config_path = tmp_path / "config.yaml"
+        config_path.write_text(
+            "pgsql:\n  - id: pg-main\n    host: localhost\n"
+            "    database: testdb\n    timeout_seconds: 900\n",
+            encoding="utf-8"
+        )
+        app = DatabaseBackupApp()
+        app.config_file = str(config_path)
+
+        app.load_databases_from_config()
+
+        controller = app.backup_manager.controllers["pg-main"]
+        assert controller.db_config.timeout_seconds == 900
     
     @patch('main.FTPService')
     @patch('main.TelegramService')

@@ -157,7 +157,8 @@ class ConfigLoader:
                         port=db_config.get('port', 5432),
                         database=db_config['database'],
                         username=db_config.get('username', ''),
-                        password=db_config.get('password', '')
+                        password=db_config.get('password', ''),
+                        timeout_seconds=int(db_config.get('timeout_seconds', 300))
                     )
                 
                 elif db_config['type'] == 'mongodb':
@@ -167,7 +168,8 @@ class ConfigLoader:
                         database=db_config['database'],
                         username=db_config.get('username', ''),
                         password=db_config.get('password', ''),
-                        uri=db_config.get('uri', '')
+                        uri=db_config.get('uri', ''),
+                        timeout_seconds=int(db_config.get('timeout_seconds', 300))
                     )
 
                 elif db_config['type'] == 'mysql':
@@ -176,7 +178,8 @@ class ConfigLoader:
                         port=db_config.get('port', 3306),
                         database=db_config['database'],
                         username=db_config.get('username', ''),
-                        password=db_config.get('password', '')
+                        password=db_config.get('password', ''),
+                        timeout_seconds=int(db_config.get('timeout_seconds', 300))
                     )
                 
                 else:

@@ -52,6 +52,25 @@ mysql:
             assert isinstance(config_map["mysql-main"], MySQLConfig)
             assert config_map["mysql-main"].database == "mysqldb"
 
+    def test_database_entry_timeouts_and_default(self):
+        config_yaml = """
+pgsql:
+  - host: localhost
+    database: slow_db
+    timeout_seconds: 900
+  - host: localhost
+    database: default_db
+"""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_path = Path(temp_dir) / "config.yaml"
+            config_path.write_text(config_yaml, encoding="utf-8")
+
+            configs = ConfigLoader(str(config_path)).create_database_configs()
+
+        config_map = {config.database: config for config, _ in configs}
+        assert config_map["slow_db"].timeout_seconds == 900
+        assert config_map["default_db"].timeout_seconds == 300
+
     def test_loads_configmap_wrapped_yaml(self):
         """Load config when YAML content is nested under a file-name key."""
         config_yaml = """

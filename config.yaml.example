@@ -15,6 +15,7 @@ pgsql:
     database: database
     username: myusername
     password: mysecretpassword
+    timeout_seconds: 900        # Optional per-database override; default is 300
   - id: pgsql-02
     host: localhost
     port: 5432
