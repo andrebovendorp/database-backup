@@ -23,5 +23,12 @@ COPY . .
 
 RUN pip install --no-cache-dir -r requirements.txt 
 
+# Run the application without root privileges while keeping runtime paths writable.
+RUN addgroup -S app && adduser -S -G app app \
+    && mkdir -p /app/backups /app/logs \
+    && chown app:app /app/backups /app/logs
+
+USER app
+
 # Default command - run the backup system
 CMD ["python", "main.py", "--help"]
