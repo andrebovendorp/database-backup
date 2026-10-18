@@ -384,7 +384,7 @@ docker buildx build --platform linux/amd64,linux/arm64 -t database-backup:latest
 
 ### GitHub Actions
 The repository includes GitHub Actions workflows for:
-- **Multi-platform builds**: Linux, Windows, macOS
+- **Executable builds**: Linux
 - **Docker image builds**: AMD64 + ARM64
 - **Semgrep CE**: Static analysis on pushes to `main`/`develop` and pull requests to `main`
 - **Automatic releases**: With downloadable executables

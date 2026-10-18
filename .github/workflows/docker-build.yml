@@ -74,7 +74,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-latest]
         python-version: ['3.11']
     
     steps:
@@ -177,8 +177,6 @@ jobs:
       with:
         files: |
           artifacts/database-backup-ubuntu-latest/*
-          artifacts/database-backup-windows-latest/*
-          artifacts/database-backup-macos-latest/*
         tag_name: ${{ needs.version.outputs.tag || github.ref_name }}
         generate_release_notes: true
         draft: false
